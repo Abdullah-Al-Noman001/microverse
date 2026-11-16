@@ -1,5 +1,5 @@
-﻿import { createWorld, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES, countGrass as countGrassWorld } from './world.js';
-import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addEvent, serializeSimulation, hydrateSimulation, countGrass } from './simulation.js';
+import { createWorld, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES } from './world.js';
+import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
 import { loadPrefs, savePrefs, saveSlot, loadSlot, listSlots, deleteSlot } from './storage.js';

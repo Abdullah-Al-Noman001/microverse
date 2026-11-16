@@ -1,4 +1,4 @@
-﻿# Microverse
+# Microverse
 
 Microverse is a cozy pixel-art ecosystem sandbox built with HTML, CSS, vanilla JavaScript, and the HTML Canvas API. Create and edit a small grassland world, introduce rabbits and wolves, then watch autonomous predator-prey dynamics unfold.
 
@@ -10,6 +10,12 @@ Microverse is a cozy pixel-art ecosystem sandbox built with HTML, CSS, vanilla J
 - **Analytics:** Population/grass history graph (canvas), readable capped event log, ecosystem totals (populations, births, deaths, successful hunts).
 - **Save & load:** LocalStorage world saves with naming, overwrite confirmation, load/delete, and safe handling of invalid/outdated data.
 - **UX polish:** Tutorial overlay, settings (sound, animations, grid, stats/analytics, default speed), tooltips, toasts, crisp pixel rendering, and subtle environmental/creature animations.
+
+## Live deployment
+
+Play Microverse at [https://abdullah-al-noman001.github.io/microverse/](https://abdullah-al-noman001.github.io/microverse/). The site is deployed from the repository root on the `main` branch with GitHub Pages.
+
+The deployment serves the project as a static site. Keep `index.html`, `style.css`, and the `js/` ES modules at their current relative paths. Each push to `main` triggers a Pages build and deployment; check the repository Actions tab for its status.
 
 ## Run locally
 No build step or dependencies required.
