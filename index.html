@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microverse — Playable Alpha</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-mark" aria-hidden="true"></div>
+        <div>
+          <h1 class="title">Microverse</h1>
+          <p class="subtitle">A cozy pixel-art ecosystem sandbox</p>
+        </div>
+      </div>
+      <div class="top-controls">
+        <label class="world-name-wrap" title="Name your world for saving">
+          <span>World</span>
+          <input id="worldNameInput" type="text" maxlength="32" value="New Meadow" spellcheck="false">
+        </label>
+        <button id="saveBtn" class="top-btn" type="button" title="Save current world to this browser">Save</button>
+        <button id="loadBtn" class="top-btn" type="button" title="Load a saved world">Load</button>
+        <button id="newWorldBtn" class="top-btn" type="button" title="Create a new world">New</button>
+        <button id="resetBtn" class="top-btn danger" type="button" title="Reset simulation on current terrain">Reset</button>
+        <button id="settingsBtn" class="top-btn" type="button" title="Open settings">Settings</button>
+        <button id="helpBtn" class="top-btn" type="button" title="Show tutorial">Help</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="leftbar panel">
+        <h2 class="panel-title">Tools</h2>
+        <div class="tool-section">
+          <div class="tool-label">Terrain Brush</div>
+          <div class="tool-grid" id="terrainTools">
+            <button class="tool-btn active" data-tool="select" title="Select tile or creature">Select</button>
+            <button class="tool-btn" data-tool="grass" title="Paint grass">Grass</button>
+            <button class="tool-btn" data-tool="dirt" title="Paint dirt">Dirt</button>
+            <button class="tool-btn" data-tool="tree" title="Place trees">Tree</button>
+            <button class="tool-btn" data-tool="bush" title="Place bushes">Bush</button>
+            <button class="tool-btn" data-tool="rock" title="Place rocks">Rock</button>
+            <button class="tool-btn" data-tool="water" title="Paint water">Water</button>
+            <button class="tool-btn" data-tool="erase" title="Erase to grass">Erase</button>
+          </div>
+        </div>
+        <div class="tool-section">
+          <div class="tool-label">Creatures</div>
+          <div class="tool-grid">
+            <button class="tool-btn" data-tool="rabbit" title="Place a rabbit on a valid land tile">+ Rabbit</button>
+            <button class="tool-btn" data-tool="wolf" title="Place a wolf on a valid land tile">+ Wolf</button>
+          </div>
+        </div>
+        <p class="hint small">Tip: Pause to edit terrain. Click and drag to paint.</p>
+        <div class="tool-section">
+          <div class="tool-label">Brush</div>
+          <div id="brushInfo" class="brush-info">Select</div>
+        </div>
+      </aside>
+
+      <main class="center">
+        <section class="game-panel panel">
+          <div class="world-meta">
+            <div class="meta-item"><span class="meta-label">World</span><span id="worldNameDisplay" class="meta-value">New Meadow</span></div>
+            <div class="meta-item"><span class="meta-label">Time</span><span id="simTime" class="meta-value">00:00</span></div>
+            <div class="meta-item"><span class="meta-label">Status</span><span id="simStatus" class="meta-value status-pill">Paused</span></div>
+            <div class="meta-item"><span class="meta-label">Size</span><span id="worldSize" class="meta-value">40 × 25</span></div>
+          </div>
+          <div class="canvas-wrap" id="canvasWrap">
+            <canvas id="worldCanvas" aria-label="Microverse world canvas"></canvas>
+          </div>
+          <div class="bottom-controls">
+            <div class="control-group">
+              <button id="playPauseBtn" class="control-btn" type="button" title="Play or pause simulation">Play</button>
+              <button id="stepResetBtn" class="control-btn secondary" type="button" title="Reset simulation on current terrain">Reset Sim</button>
+            </div>
+            <div class="control-group speed-group">
+              <span class="speed-label">Speed</span>
+              <div class="speed-buttons" id="speedButtons">
+                <button class="speed-btn active" data-speed="1" type="button">1x</button>
+                <button class="speed-btn" data-speed="2" type="button">2x</button>
+                <button class="speed-btn" data-speed="4" type="button">4x</button>
+              </div>
+            </div>
+            <div class="control-group status-note" id="editHint">Editing enabled while paused</div>
+          </div>
+        </section>
+
+        <section class="analytics-row" id="analyticsSection">
+          <div class="panel chart-panel">
+            <h2 class="panel-title">Population History</h2>
+            <canvas id="historyChart" width="520" height="140" aria-label="Population history graph"></canvas>
+            <div class="legend">
+              <span class="leg rabbits">Rabbits</span>
+              <span class="leg wolves">Wolves</span>
+              <span class="leg grass">Grass</span>
+            </div>
+          </div>
+          <div class="panel log-panel">
+            <h2 class="panel-title">Event Log</h2>
+            <ul id="eventLog" class="event-log" aria-live="polite"></ul>
+          </div>
+        </section>
+      </main>
+
+      <aside class="rightbar">
+        <div class="panel inspector-panel" id="tilePanel">
+          <h2 class="panel-title">Tile Info</h2>
+          <ul class="stats">
+            <li><span>Selected</span><strong id="tileCoord">None</strong></li>
+            <li><span>Terrain</span><strong id="tileType">-</strong></li>
+            <li><span>Walkable</span><strong id="tileWalkable">-</strong></li>
+            <li><span>Occupant</span><strong id="tileOccupant">-</strong></li>
+          </ul>
+        </div>
+
+        <div class="panel inspector-panel hidden" id="creaturePanel">
+          <div class="inspector-header">
+            <h2 class="panel-title" id="inspectorTitle">Inspector</h2>
+            <button id="closeInspectorBtn" class="close-btn" type="button" aria-label="Close inspector">×</button>
+          </div>
+          <ul class="stats inspector-stats">
+            <li><span>Type</span><strong id="inspType">-</strong></li>
+            <li><span>ID</span><strong id="inspId">-</strong></li>
+            <li><span>Age</span><strong id="inspAge">-</strong></li>
+            <li><span>Energy</span><strong id="inspEnergy">-</strong></li>
+            <li><span>Hunger</span><strong id="inspHunger">-</strong></li>
+            <li><span>State</span><strong id="inspState">-</strong></li>
+            <li id="inspHuntsRow" class="hidden"><span>Hunts</span><strong id="inspHunts">-</strong></li>
+            <li><span>Status</span><strong id="inspStatus">-</strong></li>
+          </ul>
+        </div>
+
+        <div class="panel" id="statsPanel">
+          <h2 class="panel-title">Ecosystem Stats</h2>
+          <ul class="stats compact">
+            <li><span>Rabbits</span><strong id="statRabbits">0</strong></li>
+            <li><span>Wolves</span><strong id="statWolves">0</strong></li>
+            <li><span>Grass available</span><strong id="statGrassAvail">0</strong></li>
+            <li><span>Rabbit births</span><strong id="statRabbitBirths">0</strong></li>
+            <li><span>Rabbit deaths</span><strong id="statRabbitDeaths">0</strong></li>
+            <li><span>Wolf births</span><strong id="statWolfBirths">0</strong></li>
+            <li><span>Wolf deaths</span><strong id="statWolfDeaths">0</strong></li>
+            <li><span>Successful hunts</span><strong id="statHunts">0</strong></li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+    <div id="tutorialOverlay" class="overlay hidden" aria-modal="true" role="dialog">
+      <div class="modal">
+        <h2>Welcome to Microverse</h2>
+        <ol class="tutorial-list">
+          <li><strong>Create & edit:</strong> Pause, choose a terrain brush, then click or drag on the world to paint. Use Erase to clear back to grass.</li>
+          <li><strong>Introduce animals:</strong> Select + Rabbit or + Wolf and click a valid land tile. Animals behave autonomously.</li>
+          <li><strong>Run the simulation:</strong> Press Play, adjust speed (1x/2x/4x), and watch time and events unfold.</li>
+          <li><strong>Inspect:</strong> Use Select to click a tile or creature for details on energy, hunger, age, behavior, and hunts.</li>
+          <li><strong>Understand change:</strong> Track populations, births/deaths, hunts, grass, history graph, and the event log.</li>
+        </ol>
+        <div class="modal-actions">
+          <button id="closeTutorialBtn" class="control-btn" type="button">Start Exploring</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsOverlay" class="overlay hidden" aria-modal="true" role="dialog">
+      <div class="modal">
+        <h2>Settings</h2>
+        <div class="settings-list">
+          <label class="setting-row"><span>Sound effects</span><input id="setSound" type="checkbox"></label>
+          <label class="setting-row"><span>Animations</span><input id="setAnimations" type="checkbox" checked></label>
+          <label class="setting-row"><span>Show grid</span><input id="setGrid" type="checkbox"></label>
+          <label class="setting-row"><span>Show statistics & analytics</span><input id="setStats" type="checkbox" checked></label>
+          <label class="setting-row"><span>Default speed</span>
+            <select id="setSpeed"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select>
+          </label>
+        </div>
+        <div class="modal-actions spread">
+          <button id="resetTutorialBtn" class="control-btn secondary" type="button">Reset Tutorial</button>
+          <button id="closeSettingsBtn" class="control-btn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadOverlay" class="overlay hidden" aria-modal="true" role="dialog">
+      <div class="modal">
+        <h2>Load World</h2>
+        <p class="hint small">Select a saved world from this browser.</p>
+        <ul id="saveList" class="save-list"></ul>
+        <div class="modal-actions">
+          <button id="closeLoadBtn" class="control-btn secondary" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
