@@ -33,6 +33,18 @@
     <div class="workspace">
       <aside class="leftbar panel">
         <h2 class="panel-title">Tools</h2>
+        <section class="challenge-card" aria-labelledby="challengeTitle">
+          <h3 id="challengeTitle">Ecosystem Challenge</h3>
+          <label class="challenge-select-label" for="challengeSelect">Choose a scenario</label>
+          <select id="challengeSelect" class="challenge-select">
+            <option value="refuge">Rabbit Refuge</option>
+            <option value="balance">Balanced Meadow</option>
+            <option value="hunt">Wolf’s First Hunt</option>
+          </select>
+          <p id="challengeDescription" class="challenge-description">Keep at least 3 rabbits alive for 3 minutes.</p>
+          <div id="challengeProgress" class="challenge-progress" aria-live="polite">Ready when you are.</div>
+          <button id="startChallengeBtn" class="control-btn challenge-start" type="button">Start Challenge</button>
+        </section>
         <div class="tool-section">
           <div class="tool-label">Terrain Brush</div>
           <div class="tool-grid" id="terrainTools">

@@ -8,6 +8,7 @@ Microverse is a cozy pixel-art ecosystem sandbox built with HTML, CSS, vanilla J
 - **Simulation controls:** Play/pause, reset simulation on current terrain, new/regenerated worlds, 1x/2x/4x speeds (fixed-timestep simulation), live time and status.
 - **Ecosystem mechanics:** Rabbits graze/regrow-dependent survival, flee predators, reproduce and age; wolves search/chase/hunt/eat/rest/reproduce and age; grass depletes and regrows over time.
 - **Analytics:** Population/grass history graph (canvas), readable capped event log, ecosystem totals (populations, births, deaths, successful hunts).
+- **Ecosystem challenges:** Rabbit Refuge, Balanced Meadow, and Wolf’s First Hunt scenarios with live progress, win/fail conditions, and one-click restart.
 - **Save & load:** LocalStorage world saves with naming, overwrite confirmation, load/delete, and safe handling of invalid/outdated data.
 - **UX polish:** Tutorial overlay, settings (sound, animations, grid, stats/analytics, default speed), tooltips, toasts, crisp pixel rendering, and subtle environmental/creature animations.
 

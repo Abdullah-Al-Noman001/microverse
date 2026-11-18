@@ -61,6 +61,13 @@ let isPainting = false;
 let lastPaintKey = null;
 let toastTimer = null;
 let audioCtx = null;
+let activeChallenge = null;
+
+const CHALLENGES = {
+  refuge: { name: 'Rabbit Refuge', duration: 180, rabbits: 6, wolves: 0, goal: 'Keep at least 3 rabbits alive for 3 minutes.' },
+  balance: { name: 'Balanced Meadow', duration: 240, rabbits: 10, wolves: 3, goal: 'Keep at least 4 rabbits and 1 wolf alive for 4 minutes.' },
+  hunt: { name: 'Wolf’s First Hunt', duration: 180, rabbits: 14, wolves: 4, goal: 'Help the wolves make 3 successful hunts within 3 minutes.' }
+};
 
 function ensureAudio() { if (!prefs.sound) return null; if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); } return audioCtx; }
 function playTone(freq=440, dur=0.06, type='square', vol=0.03) {
@@ -98,6 +105,8 @@ function formatTime(sec) {
 function currentWorldName() { return (worldNameInput.value || 'Untitled World').trim().slice(0,32) || 'Untitled World'; }
 
 function setupNewWorld(empty=false) {
+  activeChallenge = null;
+  updateChallengeUI();
   const world = createWorld(WIDTH, HEIGHT, TILE_SIZE, { empty });
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world);
@@ -108,7 +117,86 @@ function setupNewWorld(empty=false) {
   refreshAll();
 }
 
+function updateChallengeUI(message = null) {
+  const select = el('challengeSelect');
+  const desc = el('challengeDescription');
+  const progress = el('challengeProgress');
+  const start = el('startChallengeBtn');
+  if (!select || !desc || !progress || !start) return;
+  const spec = CHALLENGES[select.value] || CHALLENGES.refuge;
+  desc.textContent = spec.goal;
+  progress.textContent = message || (activeChallenge ? getChallengeProgress() : 'Ready when you are.');
+  start.textContent = activeChallenge ? 'Restart Challenge' : 'Start Challenge';
+  progress.classList.toggle('complete', !!activeChallenge?.complete);
+  progress.classList.toggle('failed', !!activeChallenge?.failed);
+}
+
+function getChallengeProgress() {
+  if (!activeChallenge) return 'Ready when you are.';
+  const spec = CHALLENGES[activeChallenge.id];
+  if (activeChallenge.complete) return 'Challenge complete! Great work.';
+  if (activeChallenge.failed) return 'Challenge ended. Try again with a new strategy.';
+  const elapsed = Math.max(0, sim.time - activeChallenge.startedAt);
+  const remaining = Math.max(0, Math.ceil(spec.duration - elapsed));
+  if (activeChallenge.id === 'refuge') return `${sim.rabbits.length} rabbits · ${formatTime(remaining)} remaining`;
+  if (activeChallenge.id === 'balance') return `${sim.rabbits.length} rabbits · ${sim.wolves.length} wolves · ${formatTime(remaining)} remaining`;
+  return `${sim.stats.successfulHunts} / 3 successful hunts · ${formatTime(remaining)} remaining`;
+}
+
+function startChallenge() {
+  const id = el('challengeSelect').value;
+  const spec = CHALLENGES[id] || CHALLENGES.refuge;
+  const world = createWorld(WIDTH, HEIGHT, TILE_SIZE);
+  resetRabbitIds(); resetWolfIds();
+  sim = createSimulation(world, { initialRabbits: [], initialWolves: [] });
+  let placedRabbits = 0, placedWolves = 0;
+  for (let y = 0; y < HEIGHT && placedRabbits < spec.rabbits; y++) {
+    for (let x = 0; x < WIDTH && placedRabbits < spec.rabbits; x++) if (addRabbit(sim, x, y)) placedRabbits++;
+  }
+  for (let y = 0; y < HEIGHT && placedWolves < spec.wolves; y++) {
+    for (let x = 0; x < WIDTH && placedWolves < spec.wolves; x++) if (addWolf(sim, x, y)) placedWolves++;
+  }
+  ctx = setupCanvas(canvas, world);
+  selected = null; selectedTile = null; hoverTile = null;
+  worldNameInput.value = spec.name;
+  activeChallenge = { id, startedAt: 0, complete: false, failed: false };
+  addEvent(sim, 'world', `Challenge started: ${spec.name}. ${spec.goal}`);
+  setPaused(true);
+  setBrush('select');
+  refreshAll();
+  updateChallengeUI('Challenge ready. Press Play to begin!');
+  showToast(`${spec.name} is ready.`);
+}
+
+function updateChallengeState() {
+  if (!activeChallenge || activeChallenge.complete || activeChallenge.failed) return;
+  const { id, startedAt } = activeChallenge;
+  const elapsed = sim.time - startedAt;
+  let won = false, failed = false;
+  if (id === 'refuge') {
+    won = elapsed >= 180 && sim.rabbits.length >= 3;
+    failed = sim.rabbits.length < 3;
+  } else if (id === 'balance') {
+    won = elapsed >= 240 && sim.rabbits.length >= 4 && sim.wolves.length >= 1;
+    failed = sim.rabbits.length < 4 || sim.wolves.length < 1;
+  } else {
+    won = sim.stats.successfulHunts >= 3;
+    failed = elapsed >= 180 && !won;
+  }
+  if (won) {
+    activeChallenge.complete = true; setPaused(true);
+    addEvent(sim, 'birth', `Challenge complete: ${CHALLENGES[id].name}!`);
+    sfx('birth'); showToast('Challenge complete!');
+  } else if (failed) {
+    activeChallenge.failed = true; setPaused(true);
+    addEvent(sim, 'death', `Challenge failed: ${CHALLENGES[id].name}.`);
+    showToast('Challenge failed. You can restart it anytime.');
+  }
+  updateChallengeUI();
+}
+
 function resetCurrentSim() {
+  if (activeChallenge) { startChallenge(); return; }
   resetRabbitIds(); resetWolfIds();
   resetSimulation(sim);
   selected = null; refreshAll();
@@ -361,6 +449,7 @@ function doLoad(name) {
   try {
     const newSim = hydrateSimulation(slot.payload);
     sim = newSim;
+    activeChallenge = null; updateChallengeUI();
     if (!ctx || canvas.width !== sim.world.width*TILE_SIZE || canvas.height !== sim.world.height*TILE_SIZE) ctx = setupCanvas(canvas, sim.world);
     worldNameInput.value = slot.payload.worldName || name;
     selected = null; selectedTile = null; paused = true; accumulator = 0;
@@ -431,12 +520,17 @@ function loop(ts) {
   if (uiAccum > 0.12) {
     uiAccum = 0;
     if (selected && !getSelectedCreature()) selected = null;
-    updateInspectors(); updateStatsOnly(); renderEventLog(); renderHistoryChart();
+    updateChallengeState(); updateInspectors(); updateStatsOnly(); renderEventLog(); renderHistoryChart();
   }
   requestAnimationFrame(loop);
 }
 
 function bindEvents() {
+  el('challengeSelect').addEventListener('change', () => {
+    activeChallenge = null;
+    updateChallengeUI();
+  });
+  el('startChallengeBtn').onclick = startChallenge;
   playPauseBtn.onclick = () => { setPaused(!paused); sfx('ui'); };
   stepResetBtn.onclick = resetSimFlow;
   resetBtn.onclick = resetSimFlow;
