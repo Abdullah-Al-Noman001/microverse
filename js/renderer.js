@@ -149,18 +149,33 @@ function drawBrushPreview(ctx, world, x, y, brush, settings) {
   const tool = brush.tool;
   const brushSize = ['select','rabbit','wolf'].includes(tool) ? 1 : Math.max(1, Number(brush.size) || 1);
   const radius = Math.floor(brushSize / 2);
-  const left = x - radius, top = y - radius;
+  const shape = ['select','rabbit','wolf'].includes(tool) ? 'square' : brush.shape;
+  const cells = [];
+  const cellKeys = new Set();
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (shape === 'round' && dx*dx + dy*dy > radius*radius) continue;
+    cells.push({ dx, dy });
+    cellKeys.add(`${dx},${dy}`);
+  }
   let color = 'rgba(255,255,255,0.6)';
   if (tool === 'erase') color = 'rgba(255,120,120,0.7)';
   else if (tool === 'rabbit' || tool === 'wolf') color = 'rgba(120,220,255,0.75)';
   else color = 'rgba(120,255,160,0.7)';
   ctx.save();
-  ctx.globalAlpha = 0.45;
+  ctx.globalAlpha = 0.34;
   ctx.fillStyle = color;
-  ctx.fillRect(left*size, top*size, brushSize*size, brushSize*size);
+  for (const cell of cells) ctx.fillRect((x+cell.dx)*size, (y+cell.dy)*size, size, size);
   ctx.restore();
   ctx.strokeStyle = color; ctx.lineWidth = 1;
-  ctx.strokeRect(left*size+1, top*size+1, brushSize*size-2, brushSize*size-2);
+  ctx.beginPath();
+  for (const cell of cells) {
+    const cx = x + cell.dx, cy = y + cell.dy;
+    if (!cellKeys.has(`${cell.dx},${cell.dy-1}`)) { ctx.moveTo(cx*size, cy*size); ctx.lineTo((cx+1)*size, cy*size); }
+    if (!cellKeys.has(`${cell.dx+1},${cell.dy}`)) { ctx.moveTo((cx+1)*size, cy*size); ctx.lineTo((cx+1)*size, (cy+1)*size); }
+    if (!cellKeys.has(`${cell.dx},${cell.dy+1}`)) { ctx.moveTo((cx+1)*size, (cy+1)*size); ctx.lineTo(cx*size, (cy+1)*size); }
+    if (!cellKeys.has(`${cell.dx-1},${cell.dy}`)) { ctx.moveTo(cx*size, (cy+1)*size); ctx.lineTo(cx*size, cy*size); }
+  }
+  ctx.stroke();
   ctx.fillStyle = color; ctx.fillRect(x*size + size/2 - 1, y*size + size/2 - 1, 2, 2);
 }
 

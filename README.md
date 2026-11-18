@@ -4,7 +4,7 @@ Microverse is a cozy pixel-art ecosystem sandbox built with HTML, CSS, vanilla J
 
 ## Features
 - **World editing (paused):** Select tiles, inspect terrain, paint grass/dirt/trees/bushes/rocks/water, erase to grass, and click-drag to paint with brush preview.
-- **Brush sizes:** Paint terrain with 1×1, 3×3, or 5×5 brushes; the canvas preview shows the active area.
+- **Terrain brushes:** Paint with 1×1, 3×3, or 5×5 square or round brushes; the canvas preview shows the active footprint.
 - **Creature interaction:** Place rabbits/wolves on valid land tiles, select creatures or tiles for inspection, view energy/hunger/age/state/status and wolf hunt counts.
 - **Simulation controls:** Play/pause, reset simulation on current terrain, new/regenerated worlds, 1x/2x/4x speeds (fixed-timestep simulation), live time and status.
 - **Ecosystem mechanics:** Rabbits graze/regrow-dependent survival, flee predators, reproduce and age; wolves search/chase/hunt/eat/rest/reproduce and age; grass depletes and regrows over time.
@@ -32,7 +32,7 @@ No build step or dependencies required.
 ## Controls
 - **Select tool:** Click tiles/creatures to inspect.
 - **Terrain/creature tools:** Pause simulation, choose a brush, click or drag on canvas to edit/place.
-- **Brush size:** Choose 1×1, 3×3, or 5×5 for terrain painting; creature placement remains single-tile.
+- **Terrain brush:** Choose a 1×1, 3×3, or 5×5 size and a square or round shape; creature placement remains single-tile.
 - **Playback:** Play/Pause, 1x/2x/4x speed, Reset Sim (keeps terrain), New/Reset world actions in top bar.
 - **Shortcuts:** `Space` play/pause, `1/2/4` speed, `G` toggle grid, `Esc` close overlays/clear selection.
 

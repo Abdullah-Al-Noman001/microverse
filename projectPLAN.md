@@ -53,7 +53,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 - [x] **1. Adjustable terrain brushes.** Add 1×1, 3×3, and 5×5 terrain brushes with a matching canvas preview.
 - [ ] **2. Test brush edge behavior.** Check painting at map borders, while dragging, over occupied tiles, and with each terrain type. Fix any surprising results.
-- [ ] **3. Brush shape options.** Add a round brush alongside the square brush, keeping the current size choices.
+- [x] **3. Brush shape options.** Add a round brush alongside the square brush, keeping the current size choices.
 - [ ] **4. World size choices.** Offer a few supported world dimensions and keep the canvas usable at each size.
 - [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map.
 - [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way.

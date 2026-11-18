@@ -52,6 +52,10 @@ button,input,select{font:inherit}
 .brush-size-btn{appearance:none;padding:6px 2px;border:1px solid #395744;border-radius:6px;background:#17251b;color:var(--dim);font-size:.75rem;cursor:pointer}
 .brush-size-btn:hover{background:#243629;border-color:#4a6a52;color:var(--text)}
 .brush-size-btn.active{background:#2e5238;border-color:var(--accent-dark);color:var(--hi);box-shadow:inset 0 0 0 1px rgba(183,226,122,.15)}
+.brush-shape-controls{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+.brush-shape-btn{appearance:none;padding:6px;border:1px solid #395744;border-radius:6px;background:#17251b;color:var(--dim);font-size:.75rem;cursor:pointer}
+.brush-shape-btn:hover{background:#243629;border-color:#4a6a52;color:var(--text)}
+.brush-shape-btn.active{background:#2e5238;border-color:var(--accent-dark);color:var(--hi);box-shadow:inset 0 0 0 1px rgba(183,226,122,.15)}
 .hint{margin:6px 0 0;color:var(--dim);font-size:.82rem}
 .hint.small{font-size:.78rem}
 

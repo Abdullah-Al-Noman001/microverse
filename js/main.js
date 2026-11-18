@@ -56,7 +56,7 @@ let lastTime = 0;
 let selected = null; // creature
 let selectedTile = null;
 let hoverTile = null;
-let brush = { tool: 'select', size: 1 }; // terrain size is 1, 3, or 5 tiles square
+let brush = { tool: 'select', size: 1, shape: 'square' }; // terrain brushes use 1, 3, or 5 tile footprints
 let isPainting = false;
 let lastPaintKey = null;
 let paintedStrokeTiles = new Set();
@@ -222,13 +222,24 @@ function setBrush(tool) {
   brush.tool = tool;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
   const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf'})[tool] || tool;
-  brushInfo.textContent = ['select','rabbit','wolf'].includes(tool) ? label : `${label} · ${brush.size}×${brush.size}`;
+  const shapeLabel = brush.shape === 'round' ? ' Round' : '';
+  brushInfo.textContent = ['select','rabbit','wolf'].includes(tool) ? label : `${label} · ${brush.size}×${brush.size}${shapeLabel}`;
 }
 
 function setBrushSize(size) {
   brush.size = [1, 3, 5].includes(Number(size)) ? Number(size) : 1;
   document.querySelectorAll('.brush-size-btn').forEach(b => {
     const active = Number(b.dataset.size) === brush.size;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+  setBrush(brush.tool);
+}
+
+function setBrushShape(shape) {
+  brush.shape = shape === 'round' ? 'round' : 'square';
+  document.querySelectorAll('.brush-shape-btn').forEach(b => {
+    const active = b.dataset.shape === brush.shape;
     b.classList.toggle('active', active);
     b.setAttribute('aria-pressed', String(active));
   });
@@ -294,6 +305,7 @@ function applyToolAt(tile, isDrag=false) {
   let changed = false;
   const radius = Math.floor(brush.size / 2);
   for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (brush.shape === 'round' && dx*dx + dy*dy > radius*radius) continue;
     const x = tile.x + dx, y = tile.y + dy;
     const strokeTileKey = `${x},${y}`;
     if (isDrag && paintedStrokeTiles.has(strokeTileKey)) continue;
@@ -564,6 +576,7 @@ function bindEvents() {
   document.querySelectorAll('#speedButtons .speed-btn').forEach(b => b.onclick = () => { setSpeed(Number(b.dataset.speed)); sfx('ui'); });
   document.querySelectorAll('.tool-btn').forEach(b => b.onclick = () => { setBrush(b.dataset.tool); sfx('ui'); });
   document.querySelectorAll('.brush-size-btn').forEach(b => b.onclick = () => { setBrushSize(b.dataset.size); sfx('ui'); });
+  document.querySelectorAll('.brush-shape-btn').forEach(b => b.onclick = () => { setBrushShape(b.dataset.shape); sfx('ui'); });
   worldNameInput.addEventListener('input', () => { worldNameDisplay.textContent = currentWorldName(); });
   worldNameInput.addEventListener('change', () => { worldNameDisplay.textContent = currentWorldName(); });
 
