@@ -147,6 +147,9 @@ function drawBrushPreview(ctx, world, x, y, brush, settings) {
   if (!inBounds(world,x,y)) return;
   const size = world.tileSize;
   const tool = brush.tool;
+  const brushSize = ['select','rabbit','wolf'].includes(tool) ? 1 : Math.max(1, Number(brush.size) || 1);
+  const radius = Math.floor(brushSize / 2);
+  const left = x - radius, top = y - radius;
   let color = 'rgba(255,255,255,0.6)';
   if (tool === 'erase') color = 'rgba(255,120,120,0.7)';
   else if (tool === 'rabbit' || tool === 'wolf') color = 'rgba(120,220,255,0.75)';
@@ -154,11 +157,10 @@ function drawBrushPreview(ctx, world, x, y, brush, settings) {
   ctx.save();
   ctx.globalAlpha = 0.45;
   ctx.fillStyle = color;
-  ctx.fillRect(x*size, y*size, size, size);
+  ctx.fillRect(left*size, top*size, brushSize*size, brushSize*size);
   ctx.restore();
   ctx.strokeStyle = color; ctx.lineWidth = 1;
-  ctx.strokeRect(x*size+1, y*size+1, size-2, size-2);
-  // tiny label dot
+  ctx.strokeRect(left*size+1, top*size+1, brushSize*size-2, brushSize*size-2);
   ctx.fillStyle = color; ctx.fillRect(x*size + size/2 - 1, y*size + size/2 - 1, 2, 2);
 }
 

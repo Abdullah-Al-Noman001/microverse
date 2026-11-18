@@ -56,9 +56,10 @@ let lastTime = 0;
 let selected = null; // creature
 let selectedTile = null;
 let hoverTile = null;
-let brush = { tool: 'select' }; // select|grass|dirt|tree|bush|rock|water|erase|rabbit|wolf
+let brush = { tool: 'select', size: 1 }; // terrain size is 1, 3, or 5 tiles square
 let isPainting = false;
 let lastPaintKey = null;
+let paintedStrokeTiles = new Set();
 let toastTimer = null;
 let audioCtx = null;
 let activeChallenge = null;
@@ -220,7 +221,18 @@ function updatePlayPauseUI() {
 function setBrush(tool) {
   brush.tool = tool;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
-  brushInfo.textContent = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf'})[tool] || tool;
+  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf'})[tool] || tool;
+  brushInfo.textContent = ['select','rabbit','wolf'].includes(tool) ? label : `${label} · ${brush.size}×${brush.size}`;
+}
+
+function setBrushSize(size) {
+  brush.size = [1, 3, 5].includes(Number(size)) ? Number(size) : 1;
+  document.querySelectorAll('.brush-size-btn').forEach(b => {
+    const active = Number(b.dataset.size) === brush.size;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+  setBrush(brush.tool);
 }
 
 function canvasToTile(evt) {
@@ -280,22 +292,27 @@ function applyToolAt(tile, isDrag=false) {
 
   const entities = sim;
   let changed = false;
-  if (brush.tool === 'erase') changed = eraseTile(sim.world, tile.x, tile.y, entities);
-  else if (Object.values(TILE_TYPES).includes(brush.tool)) {
-    if (!canPaintTile(sim.world, tile.x, tile.y, brush.tool, entities)) changed = false;
-    else changed = paintTile(sim.world, tile.x, tile.y, brush.tool, entities);
+  const radius = Math.floor(brush.size / 2);
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    const x = tile.x + dx, y = tile.y + dy;
+    const strokeTileKey = `${x},${y}`;
+    if (isDrag && paintedStrokeTiles.has(strokeTileKey)) continue;
+    paintedStrokeTiles.add(strokeTileKey);
+    let tileChanged = false;
+    if (brush.tool === 'erase') tileChanged = eraseTile(sim.world, x, y, entities);
+    else if (Object.values(TILE_TYPES).includes(brush.tool) && canPaintTile(sim.world, x, y, brush.tool, entities)) {
+      tileChanged = paintTile(sim.world, x, y, brush.tool, entities);
+    }
+    if (tileChanged) { changed = true; selectedTile = { x, y }; }
   }
-  if (changed) {
-    selectedTile = { x: tile.x, y: tile.y };
-    if (Math.random() < 0.15) sfx('place');
-  }
+  if (changed && Math.random() < 0.15) sfx('place');
   lastPaintKey = key;
   if (!isDrag || changed) { updateInspectors(); updateStatsOnly(); }
 }
 
 function onCanvasDown(e) {
   const t = canvasToTile(e); if (!t) return;
-  isPainting = true; lastPaintKey = null;
+  isPainting = true; lastPaintKey = null; paintedStrokeTiles = new Set();
   applyToolAt(t, false);
 }
 function onCanvasMove(e) {
@@ -305,7 +322,7 @@ function onCanvasMove(e) {
     applyToolAt(t, true);
   }
 }
-function onCanvasUp() { isPainting = false; lastPaintKey = null; }
+function onCanvasUp() { isPainting = false; lastPaintKey = null; paintedStrokeTiles.clear(); }
 function onCanvasLeave() { hoverTile = null; onCanvasUp(); }
 
 function getSelectedCreature() {
@@ -546,6 +563,7 @@ function bindEvents() {
   el('resetTutorialBtn').onclick = () => { prefs.tutorialDone = false; savePrefs(prefs); showToast('Tutorial will show on next start.'); };
   document.querySelectorAll('#speedButtons .speed-btn').forEach(b => b.onclick = () => { setSpeed(Number(b.dataset.speed)); sfx('ui'); });
   document.querySelectorAll('.tool-btn').forEach(b => b.onclick = () => { setBrush(b.dataset.tool); sfx('ui'); });
+  document.querySelectorAll('.brush-size-btn').forEach(b => b.onclick = () => { setBrushSize(b.dataset.size); sfx('ui'); });
   worldNameInput.addEventListener('input', () => { worldNameDisplay.textContent = currentWorldName(); });
   worldNameInput.addEventListener('change', () => { worldNameDisplay.textContent = currentWorldName(); });
 
