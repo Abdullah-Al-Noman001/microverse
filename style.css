@@ -68,8 +68,8 @@ button,input,select{font:inherit}
 .status-pill{padding:1px 8px;border-radius:999px;background:#233329;border:1px solid #355241;display:inline-block}
 .status-pill.running{background:#1f3a28;border-color:#4e8257;color:#bdf0a8}
 .status-pill.paused{background:#2d2718;border-color:#6a5930;color:#f3ddb0}
-.canvas-wrap{display:flex;justify-content:flex-start;align-items:flex-start;background:#0a110d;border:1px solid #223528;border-radius:8px;padding:8px;overflow:auto;min-height:200px}
-#worldCanvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;height:auto;cursor:crosshair;box-shadow:0 0 0 1px #18261d;flex:0 0 auto}
+.canvas-wrap{width:fit-content;max-width:100%;margin:0 auto;background:#0a110d;border:1px solid #223528;border-radius:8px;padding:8px;overflow:auto;min-height:0}
+#worldCanvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;height:auto;cursor:crosshair;box-shadow:0 0 0 1px #18261d}
 
 .bottom-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 .control-group{display:flex;align-items:center;gap:8px}
