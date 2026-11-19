@@ -56,18 +56,18 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: verify item 4, then continue Phase 1
+### Immediate handoff: item 5 camera zoom/pan in progress
 
-Status: **roadmap item 2 complete (user-verified 2026-11-20).** Item 4 (world size choices) **implemented, browser verification pending** (do not mark complete until checked).
+Status: **items 2, 3, 4, 44 complete.** **Item 5 (camera zoom/pan) in progress** — implementation started, not yet verified.
 
 **2026-11-20 progress (this session):**
-- **Item 44 complete (code):** removed rabbit/wolf `maxPopulation` caps and reproduction/manual-placement cap checks in `js/entities.js`, `js/simulation.js`.
-- **Item 4 implemented/fix applied (pending UI verification):** added “Next size” selector (`index.html`, `style.css`) with Small 32×20, Standard 40×25 (default), Wide 48×30. `js/main.js` now reads the selected size at New World time (`getSelectedWorldSize`), so the chosen size applies to the next New World without affecting the current world. Challenges always use fixed Standard 40×25 (`CHALLENGE_SIZE`). Save/load and canvas resize continue to use `sim.world` dimensions; size display reflects current world. `node --check` passed for changed JS.
-- **Not verified in browser:** changing next size leaves current world intact; New World creates selected dimensions with correct hit-testing/painting/entities; challenges remain 40×25 regardless of selection; save/load preserves dimensions.
+- **Item 4 complete (user-verified):** “Next size” selector applies only to next New World (Small 32×20/Standard 40×25/Wide 48×30), challenges fixed 40×25, save/load preserves dimensions. Fix: read selected size at New World time; canvas mapping uses world tile size.
+- **Item 44 complete (code):** removed rabbit/wolf population caps in `js/entities.js`, `js/simulation.js`.
+- **Item 5 started:** (implementing zoom controls and pan; keep pointer-to-tile mapping correct at every zoom level and preserve brush previews/inspection).
 
-Next agent should: verify item 4 in a current local browser build, fix issues and mark item 4 complete in roadmap, then proceed to item 5 (camera zoom/pan). Keep item 45 (any-screen support) in mind as UI/layout evolves.
+Next agent should: finish item 5 (zoom + pan), verify in browser across zoom levels/sizes (hit-testing, brush preview, inspection, drag painting, panning interaction), then mark complete and proceed to item 6. Keep item 45 (any-screen support) in scope.
 
-Relevant files: `index.html` (controls), `js/main.js` (world sizing/new-world/challenge flow), `js/world.js` generation, `js/renderer.js` canvas, `style.css`.
+Relevant files: `index.html`, `js/main.js`, `js/renderer.js`, `style.css`.
 
 ### Instructions for future agents
 
@@ -89,7 +89,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **1. Adjustable terrain brushes.** Add 1×1, 3×3, and 5×5 terrain brushes with a matching canvas preview.
 - [x] **2. Verify the complete brush matrix.** Verified by user on 2026-11-20 (local browser): all sizes/shapes at corners/edges, all terrain tools+erase, drag/overlap strokes, and occupied-animal behavior all passed.
 - [x] **3. Brush shape options.** Square/Round controls and matching tile footprints are implemented and verified as part of item 2.
-- [ ] **4. World size choices.** Add Small (32×20), Standard (40×25, current default), and Wide (48×30) choices. The choice should affect the next New World action, not silently resize or erase the current world. Keep tile size at 16 for this step; ensure the canvas remains usable and show the chosen dimensions in the existing size display. Challenges can continue to use their authored 40×25 setup.
+- [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
 - [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map. Keep pointer-to-tile mapping correct at every zoom level and preserve brush previews and inspection.
 - [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
 - [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
@@ -169,11 +169,11 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. **Verify and complete item 4:** confirm “Next size” affects only New World, Small/Standard/Wide dimensions are correct and playable, challenges stay 40×25, and save/load preserves dimensions; then mark item 4 complete.
-2. Build item 5: camera zoom and pan, keeping tile hit-testing accurate.
-3. Build item 6: Meadow, Wetland, and Woodland generation profiles.
-4. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
-5. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
+1. Finish and verify **item 5**: camera zoom and pan, keeping tile hit-testing accurate at every zoom level and preserving brush previews/inspection; mark complete when verified.
+2. Build item 6: Meadow, Wetland, and Woodland generation profiles.
+3. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
+4. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
+5. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 

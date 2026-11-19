@@ -26,6 +26,7 @@ const defaultPrefs = { sound: false, animations: true, showGrid: false, showStat
 const el = (id) => document.getElementById(id);
 const canvas = el('worldCanvas');
 const canvasWrap = el('canvasWrap');
+const zoomLabel = el('zoomLabel');
 const playPauseBtn = el('playPauseBtn');
 const stepResetBtn = el('stepResetBtn');
 const resetBtn = el('resetBtn');
@@ -71,6 +72,8 @@ let selectedTile = null;
 let hoverTile = null;
 let brush = { tool: 'select', size: 1, shape: 'square' }; // terrain brushes use 1, 3, or 5 tile footprints
 let isPainting = false;
+let isPanning = false;
+let panStart = null;
 let lastPaintKey = null;
 let lastPaintCenter = null;
 let paintedStrokeTiles = new Set();
@@ -119,6 +122,26 @@ function formatTime(sec) {
 
 function currentWorldName() { return (worldNameInput.value || 'Untitled World').trim().slice(0,32) || 'Untitled World'; }
 
+function applyZoom() {
+  if (!canvas) return;
+  canvas.style.width = (canvas.width * zoom) + 'px';
+  canvas.style.height = (canvas.height * zoom) + 'px';
+  canvas.style.maxWidth = 'none';
+  canvas.style.maxHeight = 'none';
+  if (zoomLabel) zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+}
+
+function setZoom(z) {
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z / ZOOM_STEP) * ZOOM_STEP));
+  applyZoom();
+}
+
+function resetView() {
+  zoom = 1;
+  applyZoom();
+  if (canvasWrap) { canvasWrap.scrollLeft = 0; canvasWrap.scrollTop = 0; }
+}
+
 function setupNewWorld(empty=false) {
   activeChallenge = null;
   updateChallengeUI();
@@ -127,6 +150,7 @@ function setupNewWorld(empty=false) {
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world);
   if (!ctx || canvas.width !== world.width*TILE_SIZE || canvas.height !== world.height*TILE_SIZE) ctx = setupCanvas(canvas, world);
+  resetView();
   selected = null; selectedTile = null; hoverTile = null;
   paused = true; accumulator = 0; updatePlayPauseUI();
   addEvent(sim, 'world', `New ${size.name.toLowerCase()} world created (${size.width}×${size.height}). Shape the land, then press Play.`);
@@ -173,6 +197,7 @@ function startChallenge() {
     for (let x = 0; x < CHALLENGE_SIZE.width && placedWolves < spec.wolves; x++) if (addWolf(sim, x, y)) placedWolves++;
   }
   ctx = setupCanvas(canvas, world);
+  resetView();
   selected = null; selectedTile = null; hoverTile = null;
   worldNameInput.value = spec.name;
   activeChallenge = { id, startedAt: 0, complete: false, failed: false };
@@ -339,11 +364,23 @@ function applyToolAt(tile, isDrag=false) {
 }
 
 function onCanvasDown(e) {
+  if (e && e.button === 1 && canvasWrap) {
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY, sl: canvasWrap.scrollLeft, st: canvasWrap.scrollTop };
+    canvasWrap.style.cursor = 'grabbing';
+    if (e.preventDefault) e.preventDefault();
+    return;
+  }
   const t = canvasToTile(e); if (!t) return;
   isPainting = true; lastPaintKey = null; lastPaintCenter = t; paintedStrokeTiles = new Set();
   applyToolAt(t, false);
 }
 function onCanvasMove(e) {
+  if (isPanning && panStart && canvasWrap) {
+    canvasWrap.scrollLeft = panStart.sl - (e.clientX - panStart.x);
+    canvasWrap.scrollTop = panStart.st - (e.clientY - panStart.y);
+    return;
+  }
   const t = canvasToTile(e); hoverTile = t;
   if (isPainting && t) {
     if (['select','rabbit','wolf'].includes(brush.tool)) return;
@@ -355,8 +392,15 @@ function onCanvasMove(e) {
     lastPaintCenter = t;
   }
 }
-function onCanvasUp() { isPainting = false; lastPaintKey = null; lastPaintCenter = null; paintedStrokeTiles.clear(); }
-function onCanvasLeave() { hoverTile = null; onCanvasUp(); }
+function onCanvasUp() {
+  if (isPanning) {
+    isPanning = false; panStart = null;
+    if (canvasWrap) canvasWrap.style.cursor = '';
+    return;
+  }
+  isPainting = false; lastPaintKey = null; lastPaintCenter = null; paintedStrokeTiles.clear();
+}
+function onCanvasLeave() { hoverTile = null; if (!isPanning) onCanvasUp(); }
 
 function interpolateTiles(x0, y0, x1, y1) {
   const points = [];
@@ -517,6 +561,7 @@ function doLoad(name) {
     activeChallenge = null; updateChallengeUI();
     const ts = sim.world.tileSize || TILE_SIZE;
     if (!ctx || canvas.width !== sim.world.width*ts || canvas.height !== sim.world.height*ts) ctx = setupCanvas(canvas, sim.world);
+    resetView();
     worldNameInput.value = slot.payload.worldName || name;
     selected = null; selectedTile = null; paused = true; accumulator = 0;
     addEvent(sim, 'world', `Loaded "${worldNameInput.value}".`);
@@ -626,6 +671,15 @@ function bindEvents() {
   document.querySelectorAll('.tool-btn').forEach(b => b.onclick = () => { setBrush(b.dataset.tool); sfx('ui'); });
   document.querySelectorAll('.brush-size-btn').forEach(b => b.onclick = () => { setBrushSize(b.dataset.size); sfx('ui'); });
   document.querySelectorAll('.brush-shape-btn').forEach(b => b.onclick = () => { setBrushShape(b.dataset.shape); sfx('ui'); });
+  const zoomInBtn = el('zoomInBtn'), zoomOutBtn = el('zoomOutBtn'), zoomResetBtn = el('zoomResetBtn');
+  if (zoomInBtn) zoomInBtn.onclick = () => { setZoom(zoom + ZOOM_STEP); sfx('ui'); };
+  if (zoomOutBtn) zoomOutBtn.onclick = () => { setZoom(zoom - ZOOM_STEP); sfx('ui'); };
+  if (zoomResetBtn) zoomResetBtn.onclick = () => { resetView(); sfx('ui'); };
+  if (canvasWrap) canvasWrap.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setZoom(zoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+  }, { passive: false });
   worldNameInput.addEventListener('input', () => { worldNameDisplay.textContent = currentWorldName(); });
   worldNameInput.addEventListener('change', () => { worldNameDisplay.textContent = currentWorldName(); });
 
