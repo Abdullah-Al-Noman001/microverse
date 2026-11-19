@@ -26,6 +26,8 @@ function getSelectedWorldPreset() {
 }
 const FIXED_STEP = 1 / 30;
 const MAX_FRAME_TIME = 0.25;
+const ZOOM_MIN = 0.5, ZOOM_MAX = 4, ZOOM_STEP = 0.25;
+let zoom = 1;
 
 const defaultPrefs = { sound: false, animations: true, showGrid: false, showStats: true, speed: 1, tutorialDone: false };
 
