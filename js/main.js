@@ -4,7 +4,14 @@ import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
 import { loadPrefs, savePrefs, saveSlot, loadSlot, listSlots, deleteSlot } from './storage.js';
 
-const WIDTH = 40, HEIGHT = 25, TILE_SIZE = 16;
+const TILE_SIZE = 16;
+const WORLD_SIZES = {
+  small: { id: 'small', name: 'Small', width: 32, height: 20 },
+  standard: { id: 'standard', name: 'Standard', width: 40, height: 25 },
+  wide: { id: 'wide', name: 'Wide', width: 48, height: 30 }
+};
+const CHALLENGE_SIZE = WORLD_SIZES.standard;
+let nextWorldSizeId = 'standard';
 const FIXED_STEP = 1 / 30;
 const MAX_FRAME_TIME = 0.25;
 
@@ -109,13 +116,14 @@ function currentWorldName() { return (worldNameInput.value || 'Untitled World').
 function setupNewWorld(empty=false) {
   activeChallenge = null;
   updateChallengeUI();
-  const world = createWorld(WIDTH, HEIGHT, TILE_SIZE, { empty });
+  const size = WORLD_SIZES[nextWorldSizeId] || WORLD_SIZES.standard;
+  const world = createWorld(size.width, size.height, TILE_SIZE, { empty });
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world);
   if (!ctx || canvas.width !== world.width*TILE_SIZE || canvas.height !== world.height*TILE_SIZE) ctx = setupCanvas(canvas, world);
   selected = null; selectedTile = null; hoverTile = null;
   paused = true; accumulator = 0; updatePlayPauseUI();
-  addEvent(sim, 'world', 'World created. Shape the land, then press Play.');
+  addEvent(sim, 'world', `New ${size.name.toLowerCase()} world created (${size.width}×${size.height}). Shape the land, then press Play.`);
   refreshAll();
 }
 
@@ -148,15 +156,15 @@ function getChallengeProgress() {
 function startChallenge() {
   const id = el('challengeSelect').value;
   const spec = CHALLENGES[id] || CHALLENGES.refuge;
-  const world = createWorld(WIDTH, HEIGHT, TILE_SIZE);
+  const world = createWorld(CHALLENGE_SIZE.width, CHALLENGE_SIZE.height, TILE_SIZE);
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world, { initialRabbits: [], initialWolves: [] });
   let placedRabbits = 0, placedWolves = 0;
-  for (let y = 0; y < HEIGHT && placedRabbits < spec.rabbits; y++) {
-    for (let x = 0; x < WIDTH && placedRabbits < spec.rabbits; x++) if (addRabbit(sim, x, y)) placedRabbits++;
+  for (let y = 0; y < CHALLENGE_SIZE.height && placedRabbits < spec.rabbits; y++) {
+    for (let x = 0; x < CHALLENGE_SIZE.width && placedRabbits < spec.rabbits; x++) if (addRabbit(sim, x, y)) placedRabbits++;
   }
-  for (let y = 0; y < HEIGHT && placedWolves < spec.wolves; y++) {
-    for (let x = 0; x < WIDTH && placedWolves < spec.wolves; x++) if (addWolf(sim, x, y)) placedWolves++;
+  for (let y = 0; y < CHALLENGE_SIZE.height && placedWolves < spec.wolves; y++) {
+    for (let x = 0; x < CHALLENGE_SIZE.width && placedWolves < spec.wolves; x++) if (addWolf(sim, x, y)) placedWolves++;
   }
   ctx = setupCanvas(canvas, world);
   selected = null; selectedTile = null; hoverTile = null;
@@ -576,6 +584,13 @@ function loop(ts) {
 }
 
 function bindEvents() {
+  const worldSizeSelect = el('worldSizeSelect');
+  if (worldSizeSelect) {
+    worldSizeSelect.value = nextWorldSizeId;
+    worldSizeSelect.addEventListener('change', () => {
+      if (WORLD_SIZES[worldSizeSelect.value]) nextWorldSizeId = worldSizeSelect.value;
+    });
+  }
   el('challengeSelect').addEventListener('change', () => {
     activeChallenge = null;
     updateChallengeUI();

@@ -21,6 +21,14 @@
           <span>World</span>
           <input id="worldNameInput" type="text" maxlength="32" value="New Meadow" spellcheck="false">
         </label>
+        <label class="world-size-wrap" title="Size used when you create the next New World">
+          <span>Next size</span>
+          <select id="worldSizeSelect">
+            <option value="small">Small 32×20</option>
+            <option value="standard" selected>Standard 40×25</option>
+            <option value="wide">Wide 48×30</option>
+          </select>
+        </label>
         <button id="saveBtn" class="top-btn" type="button" title="Save current world to this browser">Save</button>
         <button id="loadBtn" class="top-btn" type="button" title="Load a saved world">Load</button>
         <button id="newWorldBtn" class="top-btn" type="button" title="Create a new world">New</button>

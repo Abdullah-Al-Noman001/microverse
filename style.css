@@ -19,8 +19,9 @@ button,input,select{font:inherit}
 .title{margin:0;font-size:1.45rem;letter-spacing:.08em;text-transform:uppercase;color:var(--hi);text-shadow:0 2px 0 #243b28}
 .subtitle{margin:0;color:var(--dim);font-size:.82rem}
 .top-controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
-.world-name-wrap{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:.85rem;background:#101912;border:1px solid var(--border);padding:4px 6px;border-radius:7px}
-.world-name-wrap input{background:#0d1510;color:var(--text);border:1px solid #2f4335;border-radius:5px;padding:4px 8px;min-width:150px}
+.world-name-wrap,.world-size-wrap{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:.85rem;background:#101912;border:1px solid var(--border);padding:4px 6px;border-radius:7px}
+.world-name-wrap input,.world-size-wrap select{background:#0d1510;color:var(--text);border:1px solid #2f4335;border-radius:5px;padding:4px 8px}
+.world-name-wrap input{min-width:150px}
 .top-btn,.control-btn,.tool-btn,.speed-btn{appearance:none;border:1px solid #395744;background:#1c2b21;color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer;transition:background .15s,border-color .15s,transform .05s}
 .top-btn:hover,.control-btn:hover,.tool-btn:hover,.speed-btn:hover{background:#243629;border-color:#4a6a52}
 .top-btn.danger{border-color:#5a3b39;color:#ffd9d3;background:#2a1d1b}
@@ -148,7 +149,7 @@ button,input,select{font:inherit}
   .app{padding:8px}
   .title{font-size:1.2rem}
   .top-controls{gap:5px}
-  .world-name-wrap{width:100%}
-  .world-name-wrap input{flex:1;min-width:0}
+  .world-name-wrap,.world-size-wrap{width:100%}
+  .world-name-wrap input,.world-size-wrap select{flex:1;min-width:0}
   .tool-grid{grid-template-columns:1fr 1fr}
 }

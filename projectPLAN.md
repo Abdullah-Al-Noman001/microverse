@@ -56,17 +56,18 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: start Phase 1 world-size work
+### Immediate handoff: verify item 4, then continue Phase 1
 
-Status: **roadmap item 2 complete (user-verified 2026-11-20).** User confirmed full brush-matrix verification passed on a current local browser build: 1×1/3×3/5×5 × Square/Round at corners/edges with clean clipping, all terrain tools+erase with correct tile inspector results, continuous drag strokes (including overlap/fast movement) without repeated side-effect issues, and painting non-walkable terrain over occupied rabbit/wolf kept the animal alive with its tile walkable while surrounding eligible cells painted.
+Status: **roadmap item 2 complete (user-verified 2026-11-20).** Item 4 (world size choices) **implemented, browser verification pending** (do not mark complete until checked).
 
-**2026-11-20 follow-up:** added plan requirements that the game must work well on any screen size and that wolves should have no population cap (see roadmap items below).
+**2026-11-20 progress (this session):**
+- **Item 44 complete (code):** removed rabbit/wolf `maxPopulation` caps and reproduction/manual-placement cap checks in `js/entities.js`, `js/simulation.js`.
+- **Item 4 implemented (pending UI verification):** added “Next size” selector (`index.html`, `style.css`) with Small 32×20, Standard 40×25 (default), Wide 48×30. `js/main.js` now stores `nextWorldSizeId` and uses it only for `New World`; current world is unchanged until New. Challenges always use fixed Standard 40×25 (`CHALLENGE_SIZE`). Save/load and canvas resize continue to use `sim.world` dimensions; size display reflects current world. `node --check` passed for changed JS.
+- **Not verified in browser:** changing next size leaves current world intact; New World creates selected dimensions with correct hit-testing/painting/entities; challenges remain 40×25 regardless of selection; save/load preserves dimensions.
 
-**2026-11-19 progress (retained):** `js/main.js` drag-stroke tile interpolation (`interpolateTiles`, `lastPaintCenter`) added so fast pointer movement paints crossed brush centers; overlapping tiles de-duplicated via `paintedStrokeTiles`. `node --check` passed for `js/main.js`, `js/renderer.js`, `js/world.js`, `js/simulation.js`.
+Next agent should: verify item 4 in a current local browser build, fix issues and mark item 4 complete in roadmap, then proceed to item 5 (camera zoom/pan). Keep item 45 (any-screen support) in mind as UI/layout evolves.
 
-Next agent should begin roadmap item 4 (world size choices) per "Exact next steps", while keeping the new any-screen and no-wolf-cap requirements in scope when relevant.
-
-Relevant files for this handoff: `index.html` contains the brush controls, `js/main.js` applies brush strokes, `js/renderer.js` draws the footprint preview, and `style.css` styles the selectors.
+Relevant files: `index.html` (controls), `js/main.js` (world sizing/new-world/challenge flow), `js/world.js` generation, `js/renderer.js` canvas, `style.css`.
 
 ### Instructions for future agents
 
@@ -168,7 +169,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Build item 4: Small, Standard, and Wide world choices. Keep current world dimensions unchanged until the player chooses New World; retain 40×25 for challenges unless their design is explicitly updated later.
+1. **Verify and complete item 4:** confirm “Next size” affects only New World, Small/Standard/Wide dimensions are correct and playable, challenges stay 40×25, and save/load preserves dimensions; then mark item 4 complete.
 2. Build item 5: camera zoom and pan, keeping tile hit-testing accurate.
 3. Build item 6: Meadow, Wetland, and Woodland generation profiles.
 4. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
