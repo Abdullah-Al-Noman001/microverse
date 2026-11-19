@@ -56,16 +56,17 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: item 5 camera zoom/pan in progress
+### Immediate handoff: verify item 5, then continue Phase 1
 
-Status: **items 2, 3, 4, 44 complete.** **Item 5 (camera zoom/pan) in progress** — implementation started, not yet verified.
+Status: **items 2, 3, 4, 44 complete.** **Item 5 (camera zoom/pan) implemented, browser verification pending** (do not mark complete until checked).
 
 **2026-11-20 progress (this session):**
-- **Item 4 complete (user-verified):** “Next size” selector applies only to next New World (Small 32×20/Standard 40×25/Wide 48×30), challenges fixed 40×25, save/load preserves dimensions. Fix: read selected size at New World time; canvas mapping uses world tile size.
+- **Item 4 complete (user-verified):** “Next size” selector applies only to next New World (Small 32×20/Standard 40×25/Wide 48×30), challenges fixed 40×25, save/load preserves dimensions.
 - **Item 44 complete (code):** removed rabbit/wolf population caps in `js/entities.js`, `js/simulation.js`.
-- **Item 5 started:** (implementing zoom controls and pan; keep pointer-to-tile mapping correct at every zoom level and preserve brush previews/inspection).
+- **Item 5 implemented (pending UI verification):** zoom controls (+/−/1:1, label, Ctrl+wheel) scale canvas display via `applyZoom`/`setZoom` (0.5×–4×) while hit-testing uses canvas buffer coords, so tile mapping should remain correct at any zoom. Middle-mouse drag pans the canvas wrapper; view resets on new world/challenge/load. UI/CSS updated in `index.html`, `style.css`. `node --check` passed.
+- **Not verified in browser:** zoom in/out/reset and Ctrl+wheel across sizes; pointer-to-tile hit-testing, brush preview, drag painting/interpolation, select/inspect/place, and middle-mouse panning all correct at different zoom levels.
 
-Next agent should: finish item 5 (zoom + pan), verify in browser across zoom levels/sizes (hit-testing, brush preview, inspection, drag painting, panning interaction), then mark complete and proceed to item 6. Keep item 45 (any-screen support) in scope.
+Next agent should: verify item 5 in a current local browser build, fix issues and mark item 5 complete in roadmap, then proceed to item 6. Keep item 45 (any-screen support) in scope.
 
 Relevant files: `index.html`, `js/main.js`, `js/renderer.js`, `style.css`.
 
@@ -90,7 +91,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **2. Verify the complete brush matrix.** Verified by user on 2026-11-20 (local browser): all sizes/shapes at corners/edges, all terrain tools+erase, drag/overlap strokes, and occupied-animal behavior all passed.
 - [x] **3. Brush shape options.** Square/Round controls and matching tile footprints are implemented and verified as part of item 2.
 - [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
-- [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map. Keep pointer-to-tile mapping correct at every zoom level and preserve brush previews and inspection.
+- [ ] **5. Camera navigation (implemented; UI verification pending).** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. Verify in browser before marking complete.
 - [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
 - [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
 - [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
