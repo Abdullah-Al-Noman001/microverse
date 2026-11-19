@@ -43,6 +43,43 @@ Microverse currently has a 40×25 pixel-art world, terrain painting, rabbits and
 
 The project is plain HTML, CSS, and JavaScript modules with no build step. Keep that lightweight setup while it remains useful. Introduce new modules only when a system has enough behavior to deserve a clear boundary.
 
+## Current implementation handoff
+
+This section is the source of truth for an agent resuming work. Check the repository and this section before making changes; do not assume earlier chat context is available.
+
+### Implemented now
+
+- The app is a static HTML/CSS/vanilla JavaScript project. `index.html` loads `js/main.js` as an ES module.
+- The default world is 40×25 tiles with 16-pixel tiles. World dimensions are currently fixed by `WIDTH` and `HEIGHT` in `js/main.js`.
+- Terrain tools paint grass, dirt, water, trees, bushes, and rocks; there are also erase and single-tile rabbit/wolf placement tools.
+- Terrain brush sizes are 1×1, 3×3, and 5×5. Shapes are Square and Round. Round brushes include tile offsets whose squared distance from the center is at most the squared radius: 3×3 Round covers 5 cells, and 5×5 Round covers 13.
+- Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
+- Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
+
+### Immediate handoff: finish brush verification before adding another feature
+
+Brush size and square-brush behavior have had a partial browser check. A 5×5 Square Dirt brush was tried at the top-left edge and during a drag; a 5×5 Square Tree brush was tried over a rabbit. The map edge clipped the brush, the drag painted a continuous area, and the rabbit's occupied tile remained walkable grass with the rabbit alive. The Round shape was added afterward and has **not** had a complete UI check. Do not treat roadmap item 2 as complete yet.
+
+Next agent should complete roadmap item 2 in this order:
+
+1. Open a current local build in a browser. Avoid relying on a stale hosted page when checking un-deployed code.
+2. Check 1×1, 3×3, and 5×5 in both Square and Round shapes at the four map corners and near each map edge. Confirm there are no out-of-bounds errors and that the footprint clips cleanly.
+3. Check painting and erasing with grass, dirt, water, tree, bush, and rock. Confirm each footprint changes only eligible tiles and the tile inspector shows the expected terrain.
+4. Check a drag stroke with overlapping brush footprints. Confirm there are no gaps in a normal stroke and that overlapping tiles do not trigger repeated side effects. If fast pointer movement leaves gaps, interpolate crossed tile coordinates between pointer events.
+5. Place a rabbit or wolf, then paint non-walkable terrain over its tile. Confirm the animal stays alive and its tile remains walkable. Confirm the surrounding eligible cells still paint.
+6. Fix any issue found, record what was checked in the completion note, and only then mark item 2 complete. If UI verification is unavailable, leave it unchecked rather than claiming a pass.
+
+Relevant files for this handoff: `index.html` contains the brush controls, `js/main.js` applies brush strokes, `js/renderer.js` draws the footprint preview, and `style.css` styles the selectors.
+
+### Instructions for future agents
+
+- Before editing, run `git status --short --branch` and inspect the existing implementation around the target feature. Preserve unrelated user edits.
+- Work on one numbered roadmap item at a time. Do not skip an unchecked prerequisite. Make a small change, update its acceptance criteria, then summarize what changed and what was verified.
+- A checked implementation task means the feature code is in place; it does not automatically mean the full UI verification matrix passed. Keep implementation tasks and verification tasks separate, and record any verification that is still pending.
+- Keep saves compatible. `serializeSimulation` currently writes version 1 in `js/simulation.js`; when adding world metadata, introduce a deliberate version/migration path and retain old-save loading.
+- Keep the project dependency-free unless a specific need justifies a dependency. Prefer small edits to the existing modules over a broad rewrite.
+- The roadmap describes inspiration at the genre level. Do not copy another game's name, art, exact UI, lore, writing, or signature content. Build Microverse around habitats, animal relationships, recovery, and emergent nature stories.
+
 ## Roadmap
 
 Each numbered item is intended to be a small build step. Finish and play with one step before beginning the next. A step is complete when its behavior is visible, understandable, saved correctly when relevant, and documented.
@@ -52,13 +89,13 @@ Each numbered item is intended to be a small build step. Finish and play with on
 **Goal:** Let players make a world quickly and confidently before expanding the simulation.
 
 - [x] **1. Adjustable terrain brushes.** Add 1×1, 3×3, and 5×5 terrain brushes with a matching canvas preview.
-- [ ] **2. Test brush edge behavior.** Check painting at map borders, while dragging, over occupied tiles, and with each terrain type. Fix any surprising results.
-- [x] **3. Brush shape options.** Add a round brush alongside the square brush, keeping the current size choices.
-- [ ] **4. World size choices.** Offer a few supported world dimensions and keep the canvas usable at each size.
-- [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map.
-- [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way.
-- [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values.
-- [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves.
+- [ ] **2. Verify the complete brush matrix.** Follow the six checks in “Immediate handoff”: all sizes and shapes, map edges, all six terrain tools plus erase, overlapping drag strokes, and occupied animals. Fix issues before continuing.
+- [x] **3. Brush shape options (implemented; UI verification pending).** Square/Round controls and matching tile footprints are in the code. Verify them as part of item 2.
+- [ ] **4. World size choices.** Add Small (32×20), Standard (40×25, current default), and Wide (48×30) choices. The choice should affect the next New World action, not silently resize or erase the current world. Keep tile size at 16 for this step; ensure the canvas remains usable and show the chosen dimensions in the existing size display. Challenges can continue to use their authored 40×25 setup.
+- [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map. Keep pointer-to-tile mapping correct at every zoom level and preserve brush previews and inspection.
+- [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
+- [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
+- [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
 
 **Checkpoint:** A player can make, navigate, name, save, and reload a world with a distinct habitat profile.
 
@@ -130,15 +167,15 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 **Checkpoint:** New players can create a world, understand an ecological change, intervene, and save or share a memorable result.
 
-## Recommended next five steps
+## Exact next steps
 
-1. Check the current 1×1/3×3/5×5 brush behavior at world edges and around animals.
-2. Add a round brush option.
-3. Add a gentle Rain power that temporarily accelerates grass recovery.
-4. Add visible rain and a small status indicator so players understand the effect.
-5. Playtest the rain → grass → rabbit chain and tune its duration and strength.
+1. Finish the pending brush verification item 2 above. Square and Round brushes both exist; Round still needs the full UI pass.
+2. Build item 4: Small, Standard, and Wide world choices. Keep current world dimensions unchanged until the player chooses New World; retain 40×25 for challenges unless their design is explicitly updated later.
+3. Build item 5: camera zoom and pan, keeping tile hit-testing accurate.
+4. Build item 6: Meadow, Wetland, and Woodland generation profiles.
+5. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
 
-Keep this sequence small: finish, play, and adjust each step before starting the next one.
+After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 
 ## Product guardrails
 
