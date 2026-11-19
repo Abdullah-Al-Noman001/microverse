@@ -446,14 +446,11 @@ function findNearestRabbit(rabbits, x, y, radius) {
 
 function handleRabbitReproduction(sim) {
   const { world, rabbits, wolves, stats } = sim;
-  if (rabbits.length >= RABBIT_CONFIG.maxPopulation) return;
   const candidates = rabbits.filter((r) => canRabbitReproduce(r));
   for (let i = 0; i < candidates.length; i++) {
-    if (rabbits.length >= RABBIT_CONFIG.maxPopulation) break;
     const a = candidates[i];
     if (!a.alive || !canRabbitReproduce(a)) continue;
     for (let j = i + 1; j < candidates.length; j++) {
-      if (rabbits.length >= RABBIT_CONFIG.maxPopulation) break;
       const b = candidates[j];
       if (!b.alive || !canRabbitReproduce(b)) continue;
       if (entityDistance(a, b) <= RABBIT_CONFIG.reproduceDistance) {
@@ -474,14 +471,11 @@ function handleRabbitReproduction(sim) {
 
 function handleWolfReproduction(sim) {
   const { world, rabbits, wolves, stats } = sim;
-  if (wolves.length >= WOLF_CONFIG.maxPopulation) return;
   const candidates = wolves.filter((w) => canWolfReproduce(w));
   for (let i = 0; i < candidates.length; i++) {
-    if (wolves.length >= WOLF_CONFIG.maxPopulation) break;
     const a = candidates[i];
     if (!a.alive || !canWolfReproduce(a)) continue;
     for (let j = i + 1; j < candidates.length; j++) {
-      if (wolves.length >= WOLF_CONFIG.maxPopulation) break;
       const b = candidates[j];
       if (!b.alive || !canWolfReproduce(b)) continue;
       if (entityDistance(a, b) <= WOLF_CONFIG.reproduceDistance) {
@@ -524,7 +518,6 @@ function findBirthSpot(world, primaryGroup, secondaryGroup, a, b) {
 
 export function addRabbit(sim, x, y) {
   if (!isWalkable(sim.world, x, y) || !isTileFreeOfEntities(sim, x, y)) return null;
-  if (sim.rabbits.length >= RABBIT_CONFIG.maxPopulation) return null;
   const r = createRabbit(x, y, { age: rand(0, 6), energy: rand(75, 100), hunger: rand(5, 20) });
   sim.rabbits.push(r);
   sim.stats.rabbitBirths += 1; // tracked as introduction/birth total; event clarifies
@@ -535,7 +528,6 @@ export function addRabbit(sim, x, y) {
 
 export function addWolf(sim, x, y) {
   if (!isWalkable(sim.world, x, y) || !isTileFreeOfEntities(sim, x, y)) return null;
-  if (sim.wolves.length >= WOLF_CONFIG.maxPopulation) return null;
   const w = createWolf(x, y, { age: rand(0, 8), energy: rand(78, 100), hunger: rand(10, 25) });
   sim.wolves.push(w);
   sim.stats.wolfBirths += 1;

@@ -56,18 +56,15 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: finish brush verification before adding another feature
+### Immediate handoff: start Phase 1 world-size work
 
-Brush size and square-brush behavior have had a partial browser check. A 5×5 Square Dirt brush was tried at the top-left edge and during a drag; a 5×5 Square Tree brush was tried over a rabbit. The map edge clipped the brush, the drag painted a continuous area, and the rabbit's occupied tile remained walkable grass with the rabbit alive. The Round shape was added afterward and has **not** had a complete UI check. Do not treat roadmap item 2 as complete yet.
+Status: **roadmap item 2 complete (user-verified 2026-11-20).** User confirmed full brush-matrix verification passed on a current local browser build: 1×1/3×3/5×5 × Square/Round at corners/edges with clean clipping, all terrain tools+erase with correct tile inspector results, continuous drag strokes (including overlap/fast movement) without repeated side-effect issues, and painting non-walkable terrain over occupied rabbit/wolf kept the animal alive with its tile walkable while surrounding eligible cells painted.
 
-Next agent should complete roadmap item 2 in this order:
+**2026-11-20 follow-up:** added plan requirements that the game must work well on any screen size and that wolves should have no population cap (see roadmap items below).
 
-1. Open a current local build in a browser. Avoid relying on a stale hosted page when checking un-deployed code.
-2. Check 1×1, 3×3, and 5×5 in both Square and Round shapes at the four map corners and near each map edge. Confirm there are no out-of-bounds errors and that the footprint clips cleanly.
-3. Check painting and erasing with grass, dirt, water, tree, bush, and rock. Confirm each footprint changes only eligible tiles and the tile inspector shows the expected terrain.
-4. Check a drag stroke with overlapping brush footprints. Confirm there are no gaps in a normal stroke and that overlapping tiles do not trigger repeated side effects. If fast pointer movement leaves gaps, interpolate crossed tile coordinates between pointer events.
-5. Place a rabbit or wolf, then paint non-walkable terrain over its tile. Confirm the animal stays alive and its tile remains walkable. Confirm the surrounding eligible cells still paint.
-6. Fix any issue found, record what was checked in the completion note, and only then mark item 2 complete. If UI verification is unavailable, leave it unchecked rather than claiming a pass.
+**2026-11-19 progress (retained):** `js/main.js` drag-stroke tile interpolation (`interpolateTiles`, `lastPaintCenter`) added so fast pointer movement paints crossed brush centers; overlapping tiles de-duplicated via `paintedStrokeTiles`. `node --check` passed for `js/main.js`, `js/renderer.js`, `js/world.js`, `js/simulation.js`.
+
+Next agent should begin roadmap item 4 (world size choices) per "Exact next steps", while keeping the new any-screen and no-wolf-cap requirements in scope when relevant.
 
 Relevant files for this handoff: `index.html` contains the brush controls, `js/main.js` applies brush strokes, `js/renderer.js` draws the footprint preview, and `style.css` styles the selectors.
 
@@ -89,8 +86,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 **Goal:** Let players make a world quickly and confidently before expanding the simulation.
 
 - [x] **1. Adjustable terrain brushes.** Add 1×1, 3×3, and 5×5 terrain brushes with a matching canvas preview.
-- [ ] **2. Verify the complete brush matrix.** Follow the six checks in “Immediate handoff”: all sizes and shapes, map edges, all six terrain tools plus erase, overlapping drag strokes, and occupied animals. Fix issues before continuing.
-- [x] **3. Brush shape options (implemented; UI verification pending).** Square/Round controls and matching tile footprints are in the code. Verify them as part of item 2.
+- [x] **2. Verify the complete brush matrix.** Verified by user on 2026-11-20 (local browser): all sizes/shapes at corners/edges, all terrain tools+erase, drag/overlap strokes, and occupied-animal behavior all passed.
+- [x] **3. Brush shape options.** Square/Round controls and matching tile footprints are implemented and verified as part of item 2.
 - [ ] **4. World size choices.** Add Small (32×20), Standard (40×25, current default), and Wide (48×30) choices. The choice should affect the next New World action, not silently resize or erase the current world. Keep tile size at 16 for this step; ensure the canvas remains usable and show the chosen dimensions in the existing size display. Challenges can continue to use their authored 40×25 setup.
 - [ ] **5. Camera navigation.** Add zoom and pan so larger worlds are comfortable to explore without shrinking the whole map. Keep pointer-to-tile mapping correct at every zoom level and preserve brush previews and inspection.
 - [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
@@ -164,16 +161,18 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [ ] **41. First-play experience.** Teach the world loop through a short guided activity rather than a long instruction list.
 - [ ] **42. Visual and sound identity.** Refine original terrain, creature silhouettes, animation language, ambient sound, and UI motifs around the caretaker/nature theme.
 - [ ] **43. Playtest and tune.** Observe new players, identify confusing or uninteresting moments, and tune the systems before adding more scope.
+- [x] **44. Remove animal population caps.** Removed artificial rabbit/wolf `maxPopulation` limits and reproduction/manual-placement cap checks (`js/entities.js`, `js/simulation.js`), 2026-11-20. Keep performance and balance considerations visible during playtest.
+- [ ] **45. Any-screen support.** Ensure the game UI and world interaction work well on any screen size (desktop, laptop, tablet, phone), including responsive layout, readable controls, and usable canvas/touch interaction.
 
 **Checkpoint:** New players can create a world, understand an ecological change, intervene, and save or share a memorable result.
 
 ## Exact next steps
 
-1. Finish the pending brush verification item 2 above. Square and Round brushes both exist; Round still needs the full UI pass.
-2. Build item 4: Small, Standard, and Wide world choices. Keep current world dimensions unchanged until the player chooses New World; retain 40×25 for challenges unless their design is explicitly updated later.
-3. Build item 5: camera zoom and pan, keeping tile hit-testing accurate.
-4. Build item 6: Meadow, Wetland, and Woodland generation profiles.
-5. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
+1. Build item 4: Small, Standard, and Wide world choices. Keep current world dimensions unchanged until the player chooses New World; retain 40×25 for challenges unless their design is explicitly updated later.
+2. Build item 5: camera zoom and pan, keeping tile hit-testing accurate.
+3. Build item 6: Meadow, Wetland, and Woodland generation profiles.
+4. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
+5. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 

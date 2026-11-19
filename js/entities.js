@@ -4,7 +4,6 @@ let nextWolfId = 1;
 export const RABBIT_CONFIG = {
   countMin: 8,
   countMax: 12,
-  maxPopulation: 40,
   maxAge: 120,
   moveSpeedMin: 0.8,
   moveSpeedMax: 1.4,
@@ -34,7 +33,6 @@ export const RABBIT_CONFIG = {
 export const WOLF_CONFIG = {
   countMin: 2,
   countMax: 4,
-  maxPopulation: 10,
   maxAge: 170,
   moveSpeedMin: 1.1,
   moveSpeedMax: 1.45,

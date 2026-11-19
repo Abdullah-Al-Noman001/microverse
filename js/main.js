@@ -59,6 +59,7 @@ let hoverTile = null;
 let brush = { tool: 'select', size: 1, shape: 'square' }; // terrain brushes use 1, 3, or 5 tile footprints
 let isPainting = false;
 let lastPaintKey = null;
+let lastPaintCenter = null;
 let paintedStrokeTiles = new Set();
 let toastTimer = null;
 let audioCtx = null;
@@ -324,18 +325,38 @@ function applyToolAt(tile, isDrag=false) {
 
 function onCanvasDown(e) {
   const t = canvasToTile(e); if (!t) return;
-  isPainting = true; lastPaintKey = null; paintedStrokeTiles = new Set();
+  isPainting = true; lastPaintKey = null; lastPaintCenter = t; paintedStrokeTiles = new Set();
   applyToolAt(t, false);
 }
 function onCanvasMove(e) {
   const t = canvasToTile(e); hoverTile = t;
   if (isPainting && t) {
     if (['select','rabbit','wolf'].includes(brush.tool)) return;
-    applyToolAt(t, true);
+    const from = lastPaintCenter || t;
+    for (const p of interpolateTiles(from.x, from.y, t.x, t.y)) {
+      if (p.x === from.x && p.y === from.y && lastPaintCenter) continue;
+      applyToolAt(p, true);
+    }
+    lastPaintCenter = t;
   }
 }
-function onCanvasUp() { isPainting = false; lastPaintKey = null; paintedStrokeTiles.clear(); }
+function onCanvasUp() { isPainting = false; lastPaintKey = null; lastPaintCenter = null; paintedStrokeTiles.clear(); }
 function onCanvasLeave() { hoverTile = null; onCanvasUp(); }
+
+function interpolateTiles(x0, y0, x1, y1) {
+  const points = [];
+  let dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  while (true) {
+    points.push({ x: x0, y: y0 });
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+  return points;
+}
 
 function getSelectedCreature() {
   if (!selected) return null;
