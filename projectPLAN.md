@@ -56,19 +56,17 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: verify item 5, then continue Phase 1
+### Immediate handoff: item 6 world-generation presets in progress
 
-Status: **items 2, 3, 4, 44 complete.** **Item 5 (camera zoom/pan) implemented, browser verification pending** (do not mark complete until checked).
+Status: **items 2–5, 44 complete (item 5 user-verified 2026-11-20).** **Item 6 (world-generation presets) in progress** — implementation started, not yet verified.
 
 **2026-11-20 progress (this session):**
-- **Item 4 complete (user-verified):** “Next size” selector applies only to next New World (Small 32×20/Standard 40×25/Wide 48×30), challenges fixed 40×25, save/load preserves dimensions.
-- **Item 44 complete (code):** removed rabbit/wolf population caps in `js/entities.js`, `js/simulation.js`.
-- **Item 5 implemented (pending UI verification):** zoom controls (+/−/1:1, label, Ctrl+wheel) scale canvas display via `applyZoom`/`setZoom` (0.5×–4×) while hit-testing uses canvas buffer coords, so tile mapping should remain correct at any zoom. Middle-mouse drag pans the canvas wrapper; view resets on new world/challenge/load. UI/CSS updated in `index.html`, `style.css`. `node --check` passed.
-- **Not verified in browser:** zoom in/out/reset and Ctrl+wheel across sizes; pointer-to-tile hit-testing, brush preview, drag painting/interpolation, select/inspect/place, and middle-mouse panning all correct at different zoom levels.
+- **Item 5 complete (user-verified):** zoom/pan with correct tile hit-testing/brush preview/inspection at zoom levels.
+- **Item 6 started:** adding Meadow/Wetland/Woodland generation profiles with named, bounded terrain parameters and a next-world preset selector (applies on New World).
 
-Next agent should: verify item 5 in a current local browser build, fix issues and mark item 5 complete in roadmap, then proceed to item 6. Keep item 45 (any-screen support) in scope.
+Next agent should: finish item 6 implementation (profiles affect terrain distribution/resources clearly, params named/bounded), verify in browser (each preset visibly distinct on New World, works across sizes, save/load OK), mark complete, then proceed to item 7. Keep item 45 (any-screen support) in scope.
 
-Relevant files: `index.html`, `js/main.js`, `js/renderer.js`, `style.css`.
+Relevant files: `js/world.js`, `js/main.js`, `index.html`, `style.css`, `projectPLAN.md`.
 
 ### Instructions for future agents
 
@@ -91,7 +89,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **2. Verify the complete brush matrix.** Verified by user on 2026-11-20 (local browser): all sizes/shapes at corners/edges, all terrain tools+erase, drag/overlap strokes, and occupied-animal behavior all passed.
 - [x] **3. Brush shape options.** Square/Round controls and matching tile footprints are implemented and verified as part of item 2.
 - [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
-- [ ] **5. Camera navigation (implemented; UI verification pending).** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. Verify in browser before marking complete.
+- [x] **5. Camera navigation.** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. User-verified 2026-11-20.
 - [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
 - [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
 - [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
@@ -170,11 +168,10 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Finish and verify **item 5**: camera zoom and pan, keeping tile hit-testing accurate at every zoom level and preserving brush previews/inspection; mark complete when verified.
-2. Build item 6: Meadow, Wetland, and Woodland generation profiles.
-3. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
-4. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
-5. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
+1. Finish and verify **item 6**: Meadow, Wetland, and Woodland generation profiles with named/bounded parameters and clear terrain/resource differences; mark complete when verified.
+2. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
+3. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
+4. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 

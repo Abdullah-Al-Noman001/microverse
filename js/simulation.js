@@ -568,7 +568,8 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
     world: {
       width: sim.world.width, height: sim.world.height, tileSize: sim.world.tileSize,
       tiles: sim.world.tiles.map(r => r.slice()),
-      regrowTimers: sim.world.regrowTimers.map(r => r.slice())
+      regrowTimers: sim.world.regrowTimers.map(r => r.slice()),
+      preset: sim.world.preset || 'meadow'
     },
     stats: { ...sim.stats },
     rabbits: sim.rabbits.map(serializeEntity),
@@ -585,7 +586,7 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
 export function hydrateSimulation(data) {
   if (!data || !data.world || !Array.isArray(data.world.tiles)) throw new Error('Invalid save data');
   const w = data.world;
-  const world = { width: w.width, height: w.height, tileSize: w.tileSize, tiles: w.tiles.map(r => r.slice()), regrowTimers: (w.regrowTimers||[]).map(r => r.slice()) };
+  const world = { width: w.width, height: w.height, tileSize: w.tileSize, tiles: w.tiles.map(r => r.slice()), regrowTimers: (w.regrowTimers||[]).map(r => r.slice()), preset: w.preset || 'meadow' };
   // ensure regrowTimers shape
   if (world.regrowTimers.length !== world.height) world.regrowTimers = Array.from({length:world.height},()=>Array(world.width).fill(0));
   const sim = {

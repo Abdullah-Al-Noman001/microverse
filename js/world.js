@@ -11,20 +11,56 @@ export const WORLD_CONFIG = {
   grassRegrowTime: 18
 };
 
+export const WORLD_PRESETS = {
+  meadow: {
+    name: 'Meadow',
+    pondCount: [1, 1], pondRx: [3, 5], pondRy: [2, 4],
+    treeDensity: [0.018, 0.028], bushDensity: [0.022, 0.034], rockDensity: [0.010, 0.017],
+    treePad: 2, bushPad: 1, rockPad: 1
+  },
+  wetland: {
+    name: 'Wetland',
+    pondCount: [2, 3], pondRx: [3, 6], pondRy: [2, 4],
+    treeDensity: [0.008, 0.015], bushDensity: [0.030, 0.045], rockDensity: [0.006, 0.012],
+    treePad: 2, bushPad: 1, rockPad: 1
+  },
+  woodland: {
+    name: 'Woodland',
+    pondCount: [0, 1], pondRx: [2, 4], pondRy: [2, 3],
+    treeDensity: [0.045, 0.065], bushDensity: [0.018, 0.028], rockDensity: [0.014, 0.022],
+    treePad: 2, bushPad: 1, rockPad: 1
+  }
+};
+
 export function createWorld(width, height, tileSize, options = {}) {
   const tiles = Array.from({ length: height }, () => Array(width).fill(TILE_TYPES.GRASS));
   const regrowTimers = Array.from({ length: height }, () => Array(width).fill(0));
   const occupied = Array.from({ length: height }, () => Array(width).fill(false));
   const empty = options.empty === true;
+  const presetId = WORLD_PRESETS[options.preset] ? options.preset : 'meadow';
+  const preset = WORLD_PRESETS[presetId];
 
   if (!empty) {
-    placePond(tiles, occupied, width, height);
-    placeObjects(tiles, occupied, width, height, TILE_TYPES.TREE, randInt(18, 28), 2);
-    placeObjects(tiles, occupied, width, height, TILE_TYPES.BUSH, randInt(20, 35), 1);
-    placeObjects(tiles, occupied, width, height, TILE_TYPES.ROCK, randInt(10, 18), 1);
+    generateTerrain(tiles, occupied, width, height, preset);
   }
 
-  return { width, height, tileSize, tiles, regrowTimers };
+  return { width, height, tileSize, tiles, regrowTimers, preset: presetId };
+}
+
+function generateTerrain(tiles, occupied, width, height, preset) {
+  const area = width * height;
+  const pondCount = clamp(randIntIn(preset.pondCount), 0, 4);
+  for (let i = 0; i < pondCount; i++) {
+    const rx = clamp(randIntIn(preset.pondRx), 2, Math.max(2, Math.floor(width / 3)));
+    const ry = clamp(randIntIn(preset.pondRy), 2, Math.max(2, Math.floor(height / 3)));
+    placePond(tiles, occupied, width, height, rx, ry);
+  }
+  const trees = clamp(Math.round(randInRange(preset.treeDensity) * area), 0, Math.floor(area * 0.20));
+  const bushes = clamp(Math.round(randInRange(preset.bushDensity) * area), 0, Math.floor(area * 0.20));
+  const rocks = clamp(Math.round(randInRange(preset.rockDensity) * area), 0, Math.floor(area * 0.15));
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.TREE, trees, preset.treePad);
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.BUSH, bushes, preset.bushPad);
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.ROCK, rocks, preset.rockPad);
 }
 
 export function cloneWorld(world) {
@@ -33,15 +69,20 @@ export function cloneWorld(world) {
     height: world.height,
     tileSize: world.tileSize,
     tiles: world.tiles.map((row) => row.slice()),
-    regrowTimers: world.regrowTimers.map((row) => row.slice())
+    regrowTimers: world.regrowTimers.map((row) => row.slice()),
+    preset: world.preset || 'meadow'
   };
 }
 
-function placePond(tiles, occupied, width, height) {
-  const centerX = randInt(6, width - 7);
-  const centerY = randInt(5, height - 6);
-  const radiusX = randInt(3, 6);
-  const radiusY = randInt(2, 4);
+function placePond(tiles, occupied, width, height, radiusX, radiusY) {
+  const minX = radiusX + 2, maxX = width - radiusX - 3;
+  const minY = radiusY + 2, maxY = height - radiusY - 3;
+  if (maxX < minX || maxY < minY) return;
+  let centerX = randInt(minX, maxX), centerY = randInt(minY, maxY);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (tiles[centerY][centerX] !== TILE_TYPES.WATER) break;
+    centerX = randInt(minX, maxX); centerY = randInt(minY, maxY);
+  }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const dx = (x - centerX) / radiusX;
@@ -221,5 +262,12 @@ export function getRandomWalkableTile(world, avoid = null) {
 }
 
 function randInt(min, max) {
+  if (max < min) max = min;
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+function randInRange(range) {
+  const [min, max] = range;
+  return min + Math.random() * (max - min);
+}
+function randIntIn(range) { return randInt(range[0], range[1]); }
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }

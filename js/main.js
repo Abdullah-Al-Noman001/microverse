@@ -1,4 +1,4 @@
-import { createWorld, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES } from './world.js';
+import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES } from './world.js';
 import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
@@ -12,11 +12,17 @@ const WORLD_SIZES = {
 };
 const CHALLENGE_SIZE = WORLD_SIZES.standard;
 let nextWorldSizeId = 'standard';
+let nextWorldPresetId = 'meadow';
 
 function getSelectedWorldSize() {
   const sel = el('worldSizeSelect');
   if (sel && WORLD_SIZES[sel.value]) nextWorldSizeId = sel.value;
   return WORLD_SIZES[nextWorldSizeId] || WORLD_SIZES.standard;
+}
+function getSelectedWorldPreset() {
+  const sel = el('worldPresetSelect');
+  if (sel && WORLD_PRESETS[sel.value]) nextWorldPresetId = sel.value;
+  return WORLD_PRESETS[nextWorldPresetId] ? nextWorldPresetId : 'meadow';
 }
 const FIXED_STEP = 1 / 30;
 const MAX_FRAME_TIME = 0.25;
@@ -146,14 +152,16 @@ function setupNewWorld(empty=false) {
   activeChallenge = null;
   updateChallengeUI();
   const size = getSelectedWorldSize();
-  const world = createWorld(size.width, size.height, TILE_SIZE, { empty });
+  const presetId = getSelectedWorldPreset();
+  const presetName = WORLD_PRESETS[presetId]?.name || 'Meadow';
+  const world = createWorld(size.width, size.height, TILE_SIZE, { empty, preset: presetId });
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world);
   if (!ctx || canvas.width !== world.width*TILE_SIZE || canvas.height !== world.height*TILE_SIZE) ctx = setupCanvas(canvas, world);
   resetView();
   selected = null; selectedTile = null; hoverTile = null;
   paused = true; accumulator = 0; updatePlayPauseUI();
-  addEvent(sim, 'world', `New ${size.name.toLowerCase()} world created (${size.width}×${size.height}). Shape the land, then press Play.`);
+  addEvent(sim, 'world', `New ${presetName.toLowerCase()} ${size.name.toLowerCase()} world created (${size.width}×${size.height}). Shape the land, then press Play.`);
   refreshAll();
 }
 
@@ -576,10 +584,12 @@ function doLoad(name) {
 
 function newWorldFlow() {
   if (!confirm('Create a new world? Unsaved changes to the current world will be lost.')) return;
-  worldNameInput.value = `Meadow ${generation+1}`; generation++;
+  const presetId = getSelectedWorldPreset();
+  const presetName = WORLD_PRESETS[presetId]?.name || 'Meadow';
+  worldNameInput.value = `${presetName} ${generation+1}`; generation++;
   const size = getSelectedWorldSize();
   setupNewWorld(false);
-  showToast(`New ${size.name.toLowerCase()} world (${size.width}×${size.height}).`);
+  showToast(`New ${presetName.toLowerCase()} ${size.name.toLowerCase()} world (${size.width}×${size.height}).`);
 }
 function resetSimFlow() {
   if (!confirm('Reset simulation on current terrain? Creature and history stats will restart.')) return;
@@ -646,6 +656,16 @@ function bindEvents() {
         nextWorldSizeId = worldSizeSelect.value;
         const s = WORLD_SIZES[nextWorldSizeId];
         showToast(`Next New World: ${s.name} (${s.width}×${s.height})`);
+      }
+    });
+  }
+  const worldPresetSelect = el('worldPresetSelect');
+  if (worldPresetSelect) {
+    worldPresetSelect.value = nextWorldPresetId;
+    worldPresetSelect.addEventListener('change', () => {
+      if (WORLD_PRESETS[worldPresetSelect.value]) {
+        nextWorldPresetId = worldPresetSelect.value;
+        showToast(`Next New World preset: ${WORLD_PRESETS[nextWorldPresetId].name}`);
       }
     });
   }
