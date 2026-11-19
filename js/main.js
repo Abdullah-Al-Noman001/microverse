@@ -12,6 +12,12 @@ const WORLD_SIZES = {
 };
 const CHALLENGE_SIZE = WORLD_SIZES.standard;
 let nextWorldSizeId = 'standard';
+
+function getSelectedWorldSize() {
+  const sel = el('worldSizeSelect');
+  if (sel && WORLD_SIZES[sel.value]) nextWorldSizeId = sel.value;
+  return WORLD_SIZES[nextWorldSizeId] || WORLD_SIZES.standard;
+}
 const FIXED_STEP = 1 / 30;
 const MAX_FRAME_TIME = 0.25;
 
@@ -116,7 +122,7 @@ function currentWorldName() { return (worldNameInput.value || 'Untitled World').
 function setupNewWorld(empty=false) {
   activeChallenge = null;
   updateChallengeUI();
-  const size = WORLD_SIZES[nextWorldSizeId] || WORLD_SIZES.standard;
+  const size = getSelectedWorldSize();
   const world = createWorld(size.width, size.height, TILE_SIZE, { empty });
   resetRabbitIds(); resetWolfIds();
   sim = createSimulation(world);
@@ -524,8 +530,9 @@ function doLoad(name) {
 function newWorldFlow() {
   if (!confirm('Create a new world? Unsaved changes to the current world will be lost.')) return;
   worldNameInput.value = `Meadow ${generation+1}`; generation++;
+  const size = getSelectedWorldSize();
   setupNewWorld(false);
-  showToast('New world created.');
+  showToast(`New ${size.name.toLowerCase()} world (${size.width}×${size.height}).`);
 }
 function resetSimFlow() {
   if (!confirm('Reset simulation on current terrain? Creature and history stats will restart.')) return;
@@ -588,7 +595,11 @@ function bindEvents() {
   if (worldSizeSelect) {
     worldSizeSelect.value = nextWorldSizeId;
     worldSizeSelect.addEventListener('change', () => {
-      if (WORLD_SIZES[worldSizeSelect.value]) nextWorldSizeId = worldSizeSelect.value;
+      if (WORLD_SIZES[worldSizeSelect.value]) {
+        nextWorldSizeId = worldSizeSelect.value;
+        const s = WORLD_SIZES[nextWorldSizeId];
+        showToast(`Next New World: ${s.name} (${s.width}×${s.height})`);
+      }
     });
   }
   el('challengeSelect').addEventListener('change', () => {
