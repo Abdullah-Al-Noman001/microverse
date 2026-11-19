@@ -265,7 +265,8 @@ function canvasToTile(evt) {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
   const x = (evt.clientX - rect.left) * scaleX; const y = (evt.clientY - rect.top) * scaleY;
-  const tx = Math.floor(x / TILE_SIZE), ty = Math.floor(y / TILE_SIZE);
+  const ts = sim.world.tileSize || TILE_SIZE;
+  const tx = Math.floor(x / ts), ty = Math.floor(y / ts);
   if (tx < 0 || ty < 0 || tx >= sim.world.width || ty >= sim.world.height) return null;
   return { x: tx, y: ty };
 }
@@ -514,7 +515,8 @@ function doLoad(name) {
     const newSim = hydrateSimulation(slot.payload);
     sim = newSim;
     activeChallenge = null; updateChallengeUI();
-    if (!ctx || canvas.width !== sim.world.width*TILE_SIZE || canvas.height !== sim.world.height*TILE_SIZE) ctx = setupCanvas(canvas, sim.world);
+    const ts = sim.world.tileSize || TILE_SIZE;
+    if (!ctx || canvas.width !== sim.world.width*ts || canvas.height !== sim.world.height*ts) ctx = setupCanvas(canvas, sim.world);
     worldNameInput.value = slot.payload.worldName || name;
     selected = null; selectedTile = null; paused = true; accumulator = 0;
     addEvent(sim, 'world', `Loaded "${worldNameInput.value}".`);
