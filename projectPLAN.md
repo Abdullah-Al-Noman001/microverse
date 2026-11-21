@@ -94,8 +94,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
 - [x] **5. Camera navigation.** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. User-verified 2026-11-20.
 - [x] **6. World-generation presets.** Meadow, Wetland, and Woodland profiles with named/bounded terrain/resource parameters and next-world preset selector added. User-verified 2026-11-21: visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
-- [ ] **7. World character card (implemented; UI verification pending).** Each generated world gets 2 readable traits with named/bounded effects on real sim values (grass regrow, initial populations, rabbit hunger, wolf vision); World Character card shows trait rules. Verify in browser before marking complete.
-- [ ] **8. Save format preparation (implemented; UI verification pending).** Save version bumped to v2 with v1 migration/defaults, dimension/tile/timer validation, and clearer load/storage messaging. Verify old-save load, invalid-save message, and normal save/load flows in browser before marking complete.
+- [x] **7. World character card.** Each generated world gets 2 readable traits with named/bounded effects on real sim values (grass regrow, initial populations, rabbit hunger, wolf vision); World Character card shows trait rules. User-verified 2026-11-22.
+- [x] **8. Save format preparation.** Save version bumped to v2 with v1 migration/defaults, dimension/tile/timer validation, and clearer load/storage messaging. User-verified 2026-11-22.
 
 **Checkpoint:** A player can make, navigate, name, save, and reload a world with a distinct habitat profile.
 
@@ -171,9 +171,9 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Browser-verify **items 7–8** (trait card/rules, v1 save migration, invalid-save handling, save/load/delete UI), mark complete if passing.
+1. Build **item 9**: add power-tool section/category and clear target/brush interaction without changing terrain tools.
 2. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
-3. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
+3. Continue Phase 2 Rain power chain (items 10–12) after item 9.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 
