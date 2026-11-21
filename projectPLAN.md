@@ -56,16 +56,19 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: build item 7
+### Immediate handoff: verify item 7, then continue Phase 1
 
-Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).**
+Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).** **Item 7 (world character card) implemented, browser verification pending**.
 
 **2026-11-21 progress:**
-- **Item 6 complete (user-verified):** Meadow/Wetland/Woodland presets with named/bounded terrain/resource params and next-world preset selector; visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
+- **Item 7 implemented (pending UI verification):** generated worlds get 2 preset-compatible traits with named, bounded effects in `js/world.js` (`WORLD_TRAITS`, `pickWorldTraits`, `getWorldRules`, `traitEffects`). Traits affect real sim values: grass regrow time, initial rabbit/wolf counts, rabbit hunger rate, wolf vision. `index.html`/`style.css`/`main.js` add a “World Character” card showing trait names, descriptions, and rule changes. Save/load serializes world traits/regrow time/effects with defaults for old saves.
+- **Checks run:** `node --check` passed on touched JS modules; Node smoke check confirmed trait effects change `grassRegrowTime`, spawn counts, rabbit hunger rate, and wolf vision.
 
-Next agent should: build **item 7 (world character card)** — give each generated world 2–3 readable traits (e.g., Rainy/Sparse grass/Sheltered groves) and make those traits affect actual simulation values; show which rules each trait changes. Keep item 45 (any-screen support) in scope.
+**Not verified in browser:** trait card readability/layout on desktop/small screens, traits change across New Worlds/presets, rule text matches observed behavior, save/load preserves traits, challenges unaffected.
 
-Relevant files: `js/world.js`, `js/main.js`, `js/simulation.js`, `index.html`, `style.css`, `projectPLAN.md`.
+Next agent should: browser-verify item 7, mark complete, then build item 8 (save format preparation/migration/validation). Keep item 45 in scope.
+
+Relevant files: `js/world.js`, `js/simulation.js`, `js/main.js`, `index.html`, `style.css`, `projectPLAN.md`.
 
 ### Instructions for future agents
 
@@ -90,7 +93,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
 - [x] **5. Camera navigation.** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. User-verified 2026-11-20.
 - [x] **6. World-generation presets.** Meadow, Wetland, and Woodland profiles with named/bounded terrain/resource parameters and next-world preset selector added. User-verified 2026-11-21: visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
-- [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
+- [ ] **7. World character card (implemented; UI verification pending).** Each generated world gets 2 readable traits with named/bounded effects on real sim values (grass regrow, initial populations, rabbit hunger, wolf vision); World Character card shows trait rules. Verify in browser before marking complete.
 - [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
 
 **Checkpoint:** A player can make, navigate, name, save, and reload a world with a distinct habitat profile.
@@ -167,7 +170,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Build **item 7**: world character card with 2–3 readable traits per generated world; connect each trait to a real simulation parameter and show the rule changes.
+1. Verify **item 7** in browser (trait card, rule effects, save/load, challenges), mark complete, then build item 8 save format preparation.
 2. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
 3. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
 4. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.

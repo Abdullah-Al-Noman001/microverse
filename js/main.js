@@ -1,4 +1,4 @@
-import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES } from './world.js';
+import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES, getWorldRules } from './world.js';
 import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
@@ -50,6 +50,8 @@ const simTimeEl = el('simTime');
 const simStatusEl = el('simStatus');
 const worldSizeEl = el('worldSize');
 const brushInfo = el('brushInfo');
+const worldCharacterNameEl = el('worldCharacterName');
+const worldTraitListEl = el('worldTraitList');
 const tilePanelEls = { coord: el('tileCoord'), type: el('tileType'), walk: el('tileWalkable'), occ: el('tileOccupant') };
 const creaturePanel = el('creaturePanel');
 const tilePanel = el('tilePanel');
@@ -165,6 +167,39 @@ function setupNewWorld(empty=false) {
   paused = true; accumulator = 0; updatePlayPauseUI();
   addEvent(sim, 'world', `New ${presetName.toLowerCase()} ${size.name.toLowerCase()} world created (${size.width}×${size.height}). Shape the land, then press Play.`);
   refreshAll();
+}
+
+function renderWorldCharacter() {
+  if (!worldCharacterNameEl || !worldTraitListEl) return;
+  const preset = WORLD_PRESETS[sim.world.preset]?.name || 'World';
+  worldCharacterNameEl.textContent = `${preset} world`;
+  const rules = getWorldRules(sim.world);
+  worldTraitListEl.innerHTML = '';
+  for (const trait of rules.traits) {
+    const li = document.createElement('li');
+    li.className = 'world-trait';
+    const name = document.createElement('div');
+    name.className = 'trait-name';
+    name.textContent = trait.name;
+    const desc = document.createElement('div');
+    desc.className = 'trait-desc';
+    desc.textContent = trait.description;
+    const ruleList = document.createElement('ul');
+    ruleList.className = 'trait-rules';
+    for (const r of trait.rules) {
+      const rli = document.createElement('li');
+      rli.textContent = r;
+      ruleList.appendChild(rli);
+    }
+    li.appendChild(name); li.appendChild(desc); li.appendChild(ruleList);
+    worldTraitListEl.appendChild(li);
+  }
+  if (!rules.traits.length) {
+    const li = document.createElement('li');
+    li.className = 'world-trait';
+    li.textContent = `Grass regrows in ${Number(sim.world.grassRegrowTime ?? 18).toFixed(1)}s.`;
+    worldTraitListEl.appendChild(li);
+  }
 }
 
 function updateChallengeUI(message = null) {
@@ -528,6 +563,7 @@ function refreshAll() {
   updatePlayPauseUI();
   updateInspectors();
   updateStatsOnly();
+  renderWorldCharacter();
   renderEventLog(true);
   renderHistoryChart();
 }

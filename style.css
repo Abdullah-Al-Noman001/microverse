@@ -95,6 +95,12 @@ button,input,select{font:inherit}
 .inspector-panel.rabbit .panel-title{color:var(--hi)}
 .inspector-panel.wolf .panel-title{color:var(--wolf)}
 .inspector-panel.wolf{border-color:#3b5e73}
+.world-character-name{font-weight:700;color:var(--hi);margin-bottom:8px}
+.world-trait-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.world-trait{padding:8px;background:rgba(0,0,0,.2);border:1px solid #233329;border-radius:6px}
+.world-trait .trait-name{color:var(--text);font-weight:700;font-size:.88rem}
+.world-trait .trait-desc{color:var(--dim);font-size:.76rem;margin:2px 0 5px;line-height:1.3}
+.trait-rules{margin:0;padding-left:16px;color:#b9d8bf;font-size:.75rem;display:flex;flex-direction:column;gap:2px}
 .hidden{display:none !important}
 
 .analytics-row{display:grid;grid-template-columns:1.2fr .8fr;gap:10px}

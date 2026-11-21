@@ -11,6 +11,85 @@ export const WORLD_CONFIG = {
   grassRegrowTime: 18
 };
 
+export const WORLD_TRAITS = {
+  rainy: { id: 'rainy', name: 'Rainy', description: 'Frequent showers keep the land green.', rules: ['Grass regrows 30% faster'], effects: { grassRegrowMult: 0.7 } },
+  dry_spell: { id: 'dry_spell', name: 'Dry Spell', description: 'Water is scarce and grass recovers slowly.', rules: ['Grass regrows 35% slower'], effects: { grassRegrowMult: 1.35 } },
+  lush_meadows: { id: 'lush_meadows', name: 'Lush Meadows', description: 'Plenty of cover and forage for rabbits.', rules: ['Start with 2 extra rabbits'], effects: { rabbitSpawnDelta: 2 } },
+  sparse_forage: { id: 'sparse_forage', name: 'Sparse Forage', description: 'Food is harder to come by.', rules: ['Start with 2 fewer rabbits', 'Rabbits get hungry 15% faster'], effects: { rabbitSpawnDelta: -2, rabbitHungerMult: 1.15 } },
+  sheltered_groves: { id: 'sheltered_groves', name: 'Sheltered Groves', description: 'Hidden thickets help prey stay calm.', rules: ['Rabbits get hungry 10% slower'], effects: { rabbitHungerMult: 0.9 } },
+  wolf_country: { id: 'wolf_country', name: 'Wolf Country', description: 'Predators are well established here.', rules: ['Start with 1 extra wolf'], effects: { wolfSpawnDelta: 1 } },
+  quiet_wilds: { id: 'quiet_wilds', name: 'Quiet Wilds', description: 'Predators are scarce and less far-seeing.', rules: ['Start with 1 fewer wolf', 'Wolf vision -1 tile'], effects: { wolfSpawnDelta: -1, wolfVisionDelta: -1 } }
+};
+
+const PRESET_TRAIT_POOLS = {
+  meadow: ['rainy', 'lush_meadows', 'sheltered_groves', 'quiet_wilds', 'dry_spell'],
+  wetland: ['rainy', 'lush_meadows', 'sheltered_groves', 'sparse_forage', 'quiet_wilds'],
+  woodland: ['sheltered_groves', 'wolf_country', 'sparse_forage', 'dry_spell', 'quiet_wilds']
+};
+
+const TRAIT_INCOMPATIBLE = {
+  rainy: new Set(['dry_spell']),
+  dry_spell: new Set(['rainy']),
+  lush_meadows: new Set(['sparse_forage']),
+  sparse_forage: new Set(['lush_meadows', 'sheltered_groves']),
+  sheltered_groves: new Set(['sparse_forage']),
+  wolf_country: new Set(['quiet_wilds']),
+  quiet_wilds: new Set(['wolf_country'])
+};
+
+export function pickWorldTraits(presetId, rng = Math.random) {
+  const pool = (PRESET_TRAIT_POOLS[presetId] || PRESET_TRAIT_POOLS.meadow).slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const picked = [];
+  for (const id of pool) {
+    if (picked.length >= 2) break;
+    if (picked.some(p => (TRAIT_INCOMPATIBLE[p] || new Set()).has(id))) continue;
+    if (WORLD_TRAITS[id]) picked.push(id);
+  }
+  if (picked.length < 2) {
+    for (const id of Object.keys(WORLD_TRAITS)) {
+      if (picked.length >= 2) break;
+      if (picked.includes(id)) continue;
+      if (picked.some(p => (TRAIT_INCOMPATIBLE[p] || new Set()).has(id))) continue;
+      picked.push(id);
+    }
+  }
+  return picked;
+}
+
+export function getWorldTraitDetails(worldOrIds) {
+  const ids = Array.isArray(worldOrIds) ? worldOrIds : (worldOrIds?.traits || []);
+  return ids.map(id => WORLD_TRAITS[id]).filter(Boolean);
+}
+
+function composeTraitEffects(traitIds) {
+  const effects = { grassRegrowMult: 1, rabbitSpawnDelta: 0, wolfSpawnDelta: 0, rabbitHungerMult: 1, wolfVisionDelta: 0 };
+  for (const id of traitIds || []) {
+    const eff = WORLD_TRAITS[id]?.effects || {};
+    if (eff.grassRegrowMult) effects.grassRegrowMult *= eff.grassRegrowMult;
+    if (eff.rabbitSpawnDelta) effects.rabbitSpawnDelta += eff.rabbitSpawnDelta;
+    if (eff.wolfSpawnDelta) effects.wolfSpawnDelta += eff.wolfSpawnDelta;
+    if (eff.rabbitHungerMult) effects.rabbitHungerMult *= eff.rabbitHungerMult;
+    if (eff.wolfVisionDelta) effects.wolfVisionDelta += eff.wolfVisionDelta;
+  }
+  effects.rabbitSpawnDelta = Math.round(effects.rabbitSpawnDelta);
+  effects.wolfSpawnDelta = Math.round(effects.wolfSpawnDelta);
+  effects.grassRegrowMult = clamp(Number(effects.grassRegrowMult.toFixed(3)), 0.5, 2);
+  effects.rabbitHungerMult = clamp(Number(effects.rabbitHungerMult.toFixed(3)), 0.5, 2);
+  effects.wolfVisionDelta = Math.round(effects.wolfVisionDelta);
+  return effects;
+}
+
+export function getWorldRules(world) {
+  const grassTime = Number(world?.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime);
+  const details = getWorldTraitDetails(world);
+  return {
+    grassRegrowTime: grassTime,
+    traits: details,
+    summary: [`Grass regrows in ${grassTime.toFixed(1)}s`, ...details.flatMap(t => t.rules)]
+  };
+}
+
 export const WORLD_PRESETS = {
   meadow: {
     name: 'Meadow',
@@ -39,12 +118,17 @@ export function createWorld(width, height, tileSize, options = {}) {
   const empty = options.empty === true;
   const presetId = WORLD_PRESETS[options.preset] ? options.preset : 'meadow';
   const preset = WORLD_PRESETS[presetId];
+  const traits = Array.isArray(options.traits) && options.traits.length
+    ? options.traits.filter(id => WORLD_TRAITS[id]).slice(0, 3)
+    : pickWorldTraits(presetId, options.rng);
+  const traitEffects = composeTraitEffects(traits);
+  const grassRegrowTime = clamp(Number((WORLD_CONFIG.grassRegrowTime * traitEffects.grassRegrowMult).toFixed(2)), 6, 60);
 
   if (!empty) {
     generateTerrain(tiles, occupied, width, height, preset);
   }
 
-  return { width, height, tileSize, tiles, regrowTimers, preset: presetId };
+  return { width, height, tileSize, tiles, regrowTimers, preset: presetId, traits, grassRegrowTime, traitEffects };
 }
 
 function generateTerrain(tiles, occupied, width, height, preset) {
@@ -70,7 +154,10 @@ export function cloneWorld(world) {
     tileSize: world.tileSize,
     tiles: world.tiles.map((row) => row.slice()),
     regrowTimers: world.regrowTimers.map((row) => row.slice()),
-    preset: world.preset || 'meadow'
+    preset: world.preset || 'meadow',
+    traits: Array.isArray(world.traits) ? world.traits.slice() : [],
+    grassRegrowTime: Number(world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime),
+    traitEffects: world.traitEffects && typeof world.traitEffects === 'object' ? { ...world.traitEffects } : {}
   };
 }
 
@@ -160,7 +247,7 @@ export function paintTile(world, x, y, type, entities = null) {
   // if placing non-walkable over occupied tile, disallow unless no entities
   if (entities && !isTileFreeOfEntities(entities, x, y) && !isWalkableType(type)) return false;
   setTile(world, x, y, type);
-  if (type === TILE_TYPES.DIRT) world.regrowTimers[y][x] = WORLD_CONFIG.grassRegrowTime;
+  if (type === TILE_TYPES.DIRT) world.regrowTimers[y][x] = Number(world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime);
   return true;
 }
 
@@ -208,7 +295,7 @@ export function depleteGrass(world, x, y) {
   if (!inBounds(world, x, y)) return false;
   if (world.tiles[y][x] !== TILE_TYPES.GRASS) return false;
   world.tiles[y][x] = TILE_TYPES.DIRT;
-  world.regrowTimers[y][x] = WORLD_CONFIG.grassRegrowTime;
+  world.regrowTimers[y][x] = Number(world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime);
   return true;
 }
 

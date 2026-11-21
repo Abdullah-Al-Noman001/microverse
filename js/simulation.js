@@ -1,4 +1,4 @@
-import { TILE_TYPES, isWalkable, depleteGrass, updateGrassRegrowth, getRandomGrassSpawn, getRandomWalkableTile, isTileFreeOfEntities } from './world.js';
+import { TILE_TYPES, WORLD_CONFIG, isWalkable, depleteGrass, updateGrassRegrowth, getRandomGrassSpawn, getRandomWalkableTile, isTileFreeOfEntities, getWorldTraitDetails, getWorldRules } from './world.js';
 import { createRabbit, createWolf, RABBIT_CONFIG, WOLF_CONFIG, getEntityRenderPos, setIdCounters, sanitizeEntityPosition } from './entities.js';
 
 const MAX_EVENTS = 120;
@@ -25,7 +25,7 @@ export function createSimulation(world, options = {}) {
     _regrowBatch: 0,
     _regrowFlush: 0
   };
-  if (!options.skipWelcome) addEvent(sim, 'world', 'A new ecosystem begins.');
+  if (!options.skipWelcome) addEvent(sim, 'world', buildWorldIntro(sim));
   recordHistory(sim, true);
   return sim;
 }
@@ -44,14 +44,16 @@ export function resetSimulation(sim) {
   const wolves = spawnInitialWolves(sim.world, rabbits);
   sim.rabbits.push(...rabbits);
   sim.wolves.push(...wolves);
-  addEvent(sim, 'world', 'Simulation reset.');
+  addEvent(sim, 'world', 'Simulation reset. ' + getWorldTraitSummary(sim.world));
   for (const r of rabbits) addEvent(sim, 'birth', `Rabbit #${r.id} entered the world.`);
   for (const w of wolves) addEvent(sim, 'birth', `Wolf #${w.id} entered the world.`);
   recordHistory(sim, true);
 }
 
 function spawnInitialRabbits(world) {
-  const count = randInt(RABBIT_CONFIG.countMin, RABBIT_CONFIG.countMax);
+  const delta = Math.round(Number(world?.traitEffects?.rabbitSpawnDelta || 0));
+  const count = clamp(randInt(RABBIT_CONFIG.countMin, RABBIT_CONFIG.countMax) + delta, 1, 40);
+  const hungerMult = Number(world?.traitEffects?.rabbitHungerMult || 1);
   const rabbits = [];
   const used = new Set();
   let attempts = 0;
@@ -62,13 +64,17 @@ function spawnInitialRabbits(world) {
     const key = `${pos.x},${pos.y}`;
     if (used.has(key)) continue;
     used.add(key);
-    rabbits.push(createRabbit(pos.x, pos.y));
+    const r = createRabbit(pos.x, pos.y);
+    r.hungerRate = clamp(r.hungerRate * hungerMult, 0.5, 12);
+    rabbits.push(r);
   }
   return rabbits;
 }
 
 function spawnInitialWolves(world, rabbits) {
-  const count = randInt(WOLF_CONFIG.countMin, WOLF_CONFIG.countMax);
+  const delta = Math.round(Number(world?.traitEffects?.wolfSpawnDelta || 0));
+  const count = clamp(randInt(WOLF_CONFIG.countMin, WOLF_CONFIG.countMax) + delta, 0, 20);
+  const visionDelta = Number(world?.traitEffects?.wolfVisionDelta || 0);
   const wolves = [];
   const used = new Set(rabbits.map((r) => `${r.tileX},${r.tileY}`));
   let attempts = 0;
@@ -82,7 +88,9 @@ function spawnInitialWolves(world, rabbits) {
     for (const r of rabbits) if (manhattan(pos.x, pos.y, r.tileX, r.tileY) < 3) { tooClose = true; break; }
     if (tooClose && attempts < 500) continue;
     used.add(key);
-    wolves.push(createWolf(pos.x, pos.y));
+    const w = createWolf(pos.x, pos.y);
+    w.visionRange = clamp(w.visionRange + visionDelta, 3, 12);
+    wolves.push(w);
   }
   return wolves;
 }
@@ -457,6 +465,7 @@ function handleRabbitReproduction(sim) {
         const babyPos = findBirthSpot(world, rabbits, wolves, a, b);
         if (babyPos) {
           const baby = createRabbit(babyPos.x, babyPos.y, { age: 0, energy: 75, hunger: 15, reproductionCooldown: 10 });
+          baby.hungerRate = clamp(baby.hungerRate * Number(sim.world?.traitEffects?.rabbitHungerMult || 1), 0.5, 12);
           rabbits.push(baby);
           stats.rabbitBirths += 1;
           applyReproCost(a, RABBIT_CONFIG); applyReproCost(b, RABBIT_CONFIG);
@@ -482,6 +491,7 @@ function handleWolfReproduction(sim) {
         const babyPos = findBirthSpot(world, wolves, rabbits, a, b);
         if (babyPos) {
           const baby = createWolf(babyPos.x, babyPos.y, { age: 0, energy: 78, hunger: 20, reproductionCooldown: 16 });
+          baby.visionRange = clamp(baby.visionRange + Number(sim.world?.traitEffects?.wolfVisionDelta || 0), 3, 12);
           wolves.push(baby);
           stats.wolfBirths += 1;
           applyReproCost(a, WOLF_CONFIG); applyReproCost(b, WOLF_CONFIG);
@@ -519,6 +529,8 @@ function findBirthSpot(world, primaryGroup, secondaryGroup, a, b) {
 export function addRabbit(sim, x, y) {
   if (!isWalkable(sim.world, x, y) || !isTileFreeOfEntities(sim, x, y)) return null;
   const r = createRabbit(x, y, { age: rand(0, 6), energy: rand(75, 100), hunger: rand(5, 20) });
+  const hungerMult = Number(sim.world?.traitEffects?.rabbitHungerMult || 1);
+  r.hungerRate = clamp(r.hungerRate * hungerMult, 0.5, 12);
   sim.rabbits.push(r);
   sim.stats.rabbitBirths += 1; // tracked as introduction/birth total; event clarifies
   addEvent(sim, 'birth', `Rabbit #${r.id} was introduced.`);
@@ -529,6 +541,8 @@ export function addRabbit(sim, x, y) {
 export function addWolf(sim, x, y) {
   if (!isWalkable(sim.world, x, y) || !isTileFreeOfEntities(sim, x, y)) return null;
   const w = createWolf(x, y, { age: rand(0, 8), energy: rand(78, 100), hunger: rand(10, 25) });
+  const visionDelta = Number(sim.world?.traitEffects?.wolfVisionDelta || 0);
+  w.visionRange = clamp(w.visionRange + visionDelta, 3, 12);
   sim.wolves.push(w);
   sim.stats.wolfBirths += 1;
   addEvent(sim, 'birth', `Wolf #${w.id} was introduced.`);
@@ -554,6 +568,20 @@ export function recordHistory(sim, force = false) {
   if (sim.history.length > MAX_HISTORY) sim.history.splice(0, sim.history.length - MAX_HISTORY);
 }
 
+function getWorldTraitSummary(world) {
+  const details = getWorldTraitDetails(world);
+  if (!details.length) return `Grass regrows in ${Number(world?.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime).toFixed(1)}s.`;
+  return `Traits: ${details.map(t => t.name).join(', ')}.`;
+}
+
+function buildWorldIntro(sim) {
+  const name = (sim.world.preset || 'meadow');
+  const label = name.charAt(0).toUpperCase() + name.slice(1);
+  const rules = getWorldRules(sim.world);
+  const traitText = rules.traits.length ? ` Traits: ${rules.traits.map(t => t.name).join(', ')}.` : '';
+  return `A new ${label.toLowerCase()} world begins.${traitText}`;
+}
+
 export function countGrass(world) {
   let g = 0;
   for (let y = 0; y < world.height; y++) for (let x = 0; x < world.width; x++) if (world.tiles[y][x] === TILE_TYPES.GRASS) g++;
@@ -569,7 +597,10 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
       width: sim.world.width, height: sim.world.height, tileSize: sim.world.tileSize,
       tiles: sim.world.tiles.map(r => r.slice()),
       regrowTimers: sim.world.regrowTimers.map(r => r.slice()),
-      preset: sim.world.preset || 'meadow'
+      preset: sim.world.preset || 'meadow',
+      traits: Array.isArray(sim.world.traits) ? sim.world.traits.slice() : [],
+      grassRegrowTime: Number(sim.world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime),
+      traitEffects: sim.world.traitEffects && typeof sim.world.traitEffects === 'object' ? { ...sim.world.traitEffects } : {}
     },
     stats: { ...sim.stats },
     rabbits: sim.rabbits.map(serializeEntity),
@@ -586,7 +617,15 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
 export function hydrateSimulation(data) {
   if (!data || !data.world || !Array.isArray(data.world.tiles)) throw new Error('Invalid save data');
   const w = data.world;
-  const world = { width: w.width, height: w.height, tileSize: w.tileSize, tiles: w.tiles.map(r => r.slice()), regrowTimers: (w.regrowTimers||[]).map(r => r.slice()), preset: w.preset || 'meadow' };
+  const world = {
+    width: w.width, height: w.height, tileSize: w.tileSize,
+    tiles: w.tiles.map(r => r.slice()),
+    regrowTimers: (w.regrowTimers||[]).map(r => r.slice()),
+    preset: w.preset || 'meadow',
+    traits: Array.isArray(w.traits) ? w.traits.filter(t => typeof t === 'string') : [],
+    grassRegrowTime: Number.isFinite(Number(w.grassRegrowTime)) ? clamp(Number(w.grassRegrowTime), 6, 60) : Number(WORLD_CONFIG.grassRegrowTime),
+    traitEffects: w.traitEffects && typeof w.traitEffects === 'object' ? { ...w.traitEffects } : {}
+  };
   // ensure regrowTimers shape
   if (world.regrowTimers.length !== world.height) world.regrowTimers = Array.from({length:world.height},()=>Array(world.width).fill(0));
   const sim = {
