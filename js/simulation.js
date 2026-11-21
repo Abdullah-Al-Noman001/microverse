@@ -588,11 +588,15 @@ export function countGrass(world) {
   return g;
 }
 
+export const SAVE_VERSION = 2;
+const SUPPORTED_SAVE_VERSIONS = new Set([1, 2]);
+const VALID_TILE_TYPES = new Set(Object.values(TILE_TYPES));
+
 export function serializeSimulation(sim, worldName = 'Microverse') {
   return {
-    version: 1,
+    version: SAVE_VERSION,
     worldName,
-    time: sim.time,
+    time: Number(sim.time) || 0,
     world: {
       width: sim.world.width, height: sim.world.height, tileSize: sim.world.tileSize,
       tiles: sim.world.tiles.map(r => r.slice()),
@@ -615,54 +619,142 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
 }
 
 export function hydrateSimulation(data) {
-  if (!data || !data.world || !Array.isArray(data.world.tiles)) throw new Error('Invalid save data');
-  const w = data.world;
+  const migrated = migrateSaveData(data);
+  const w = migrated.world;
   const world = {
     width: w.width, height: w.height, tileSize: w.tileSize,
     tiles: w.tiles.map(r => r.slice()),
-    regrowTimers: (w.regrowTimers||[]).map(r => r.slice()),
-    preset: w.preset || 'meadow',
+    regrowTimers: w.regrowTimers.map(r => r.slice()),
+    preset: typeof w.preset === 'string' ? w.preset : 'meadow',
     traits: Array.isArray(w.traits) ? w.traits.filter(t => typeof t === 'string') : [],
     grassRegrowTime: Number.isFinite(Number(w.grassRegrowTime)) ? clamp(Number(w.grassRegrowTime), 6, 60) : Number(WORLD_CONFIG.grassRegrowTime),
     traitEffects: w.traitEffects && typeof w.traitEffects === 'object' ? { ...w.traitEffects } : {}
   };
-  // ensure regrowTimers shape
-  if (world.regrowTimers.length !== world.height) world.regrowTimers = Array.from({length:world.height},()=>Array(world.width).fill(0));
   const sim = {
     world,
     rabbits: [], wolves: [],
-    stats: { rabbitBirths: 0, rabbitDeaths: 0, wolfBirths: 0, wolfDeaths: 0, successfulHunts: 0, ...(data.stats||{}) },
-    time: Number(data.time) || 0,
-    events: Array.isArray(data.events) ? data.events.slice(-MAX_EVENTS) : [],
-    history: Array.isArray(data.history) ? data.history.slice(-MAX_HISTORY) : [],
+    stats: normalizeStats(migrated.stats),
+    time: Math.max(0, Number(migrated.time) || 0),
+    events: Array.isArray(migrated.events) ? migrated.events.slice(-MAX_EVENTS).map(sanitizeEvent).filter(Boolean) : [],
+    history: Array.isArray(migrated.history) ? migrated.history.slice(-MAX_HISTORY).map(sanitizeHistory).filter(Boolean) : [],
     _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0
   };
-  setIdCounters(data.idCounters?.rabbit || 0, data.idCounters?.wolf || 0);
-  for (const r of (data.rabbits||[])) {
-    if (!r) continue;
-    const e = createRabbit(clampInt(r.tileX??r.x,0,world.width-1), clampInt(r.tileY??r.y,0,world.height-1), r);
+  setIdCounters(migrated.idCounters?.rabbit || 0, migrated.idCounters?.wolf || 0);
+  for (const r of (migrated.rabbits || [])) {
+    if (!r || typeof r !== 'object') continue;
+    const e = createRabbit(clampInt(r.tileX ?? r.x, 0, world.width - 1), clampInt(r.tileY ?? r.y, 0, world.height - 1), r);
     Object.assign(e, safeEntityFields(r));
-    e.type='rabbit'; sanitizeEntityPosition(e, world); if (!isWalkable(world,e.tileX,e.tileY)) { const s=getRandomWalkableTile(world); if(s) sanitizePlace(e,s.x,s.y); }
-    if (e.energy>0 && e.age < e.maxAge) e.alive=true; else { e.alive=false; }
+    e.type = 'rabbit'; sanitizeEntityPosition(e, world);
+    if (!isWalkable(world, e.tileX, e.tileY)) { const s = getRandomWalkableTile(world); if (s) sanitizePlace(e, s.x, s.y); }
+    if (e.energy > 0 && e.age < e.maxAge) e.alive = true; else e.alive = false;
     if (e.alive) sim.rabbits.push(e);
   }
-  for (const wEnt of (data.wolves||[])) {
-    if (!wEnt) continue;
-    const e = createWolf(clampInt(wEnt.tileX??wEnt.x,0,world.width-1), clampInt(wEnt.tileY??wEnt.y,0,world.height-1), wEnt);
+  for (const wEnt of (migrated.wolves || [])) {
+    if (!wEnt || typeof wEnt !== 'object') continue;
+    const e = createWolf(clampInt(wEnt.tileX ?? wEnt.x, 0, world.width - 1), clampInt(wEnt.tileY ?? wEnt.y, 0, world.height - 1), wEnt);
     Object.assign(e, safeEntityFields(wEnt));
-    e.type='wolf'; e.successfulHunts = Number(wEnt.successfulHunts)||0; e.targetRabbitId = wEnt.targetRabbitId ?? null;
-    sanitizeEntityPosition(e, world); if (!isWalkable(world,e.tileX,e.tileY)) { const s=getRandomWalkableTile(world); if(s) sanitizePlace(e,s.x,s.y); }
-    if (e.energy>0 && e.age < e.maxAge) e.alive=true; else { e.alive=false; }
+    e.type = 'wolf'; e.successfulHunts = Math.max(0, Math.round(Number(wEnt.successfulHunts) || 0)); e.targetRabbitId = wEnt.targetRabbitId ?? null;
+    sanitizeEntityPosition(e, world);
+    if (!isWalkable(world, e.tileX, e.tileY)) { const s = getRandomWalkableTile(world); if (s) sanitizePlace(e, s.x, s.y); }
+    if (e.energy > 0 && e.age < e.maxAge) e.alive = true; else e.alive = false;
     if (e.alive) sim.wolves.push(e);
   }
-  // fix id counters to avoid collisions
   setIdCounters(
-    sim.rabbits.reduce((m,e)=>Math.max(m,e.id), data.idCounters?.rabbit||0),
-    sim.wolves.reduce((m,e)=>Math.max(m,e.id), data.idCounters?.wolf||0)
+    sim.rabbits.reduce((m, e) => Math.max(m, e.id), migrated.idCounters?.rabbit || 0),
+    sim.wolves.reduce((m, e) => Math.max(m, e.id), migrated.idCounters?.wolf || 0)
   );
-  sim._eventSeq = sim.events.reduce((m,e)=>Math.max(m, e.id||0),0) + 1;
+  sim._eventSeq = sim.events.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
   if (!sim.history.length) recordHistory(sim, true);
   return sim;
+}
+
+function migrateSaveData(data) {
+  if (!data || typeof data !== 'object') throw new Error('Invalid save data');
+  const version = data.version == null ? 1 : Number(data.version);
+  if (!Number.isFinite(version) || !SUPPORTED_SAVE_VERSIONS.has(version)) throw new Error('Unsupported save version');
+  const source = version === 1 ? migrateV1ToV2(data) : data;
+  return normalizeSaveV2(source);
+}
+
+function migrateV1ToV2(data) {
+  const w = data.world || {};
+  return {
+    ...data,
+    version: 2,
+    world: {
+      ...w,
+      preset: typeof w.preset === 'string' ? w.preset : 'meadow',
+      traits: Array.isArray(w.traits) ? w.traits : [],
+      grassRegrowTime: Number.isFinite(Number(w.grassRegrowTime)) ? Number(w.grassRegrowTime) : Number(WORLD_CONFIG.grassRegrowTime),
+      traitEffects: w.traitEffects && typeof w.traitEffects === 'object' ? w.traitEffects : {}
+    }
+  };
+}
+
+function normalizeSaveV2(data) {
+  if (!data.world || typeof data.world !== 'object' || !Array.isArray(data.world.tiles)) throw new Error('Invalid world data');
+  const w = data.world;
+  const width = clampInt(w.width, 8, 128);
+  const height = clampInt(w.height, 8, 128);
+  const tileSize = clampInt(w.tileSize, 8, 64);
+  const tiles = normalizeTiles(w.tiles, width, height);
+  const regrowTimers = normalizeRegrowTimers(w.regrowTimers, width, height);
+  return {
+    version: 2,
+    worldName: typeof data.worldName === 'string' ? data.worldName : 'Microverse',
+    time: Math.max(0, Number(data.time) || 0),
+    world: {
+      width, height, tileSize, tiles, regrowTimers,
+      preset: typeof w.preset === 'string' ? w.preset : 'meadow',
+      traits: Array.isArray(w.traits) ? w.traits.filter(t => typeof t === 'string').slice(0, 3) : [],
+      grassRegrowTime: Number.isFinite(Number(w.grassRegrowTime)) ? clamp(Number(w.grassRegrowTime), 6, 60) : Number(WORLD_CONFIG.grassRegrowTime),
+      traitEffects: w.traitEffects && typeof w.traitEffects === 'object' ? { ...w.traitEffects } : {}
+    },
+    stats: normalizeStats(data.stats),
+    rabbits: Array.isArray(data.rabbits) ? data.rabbits : [],
+    wolves: Array.isArray(data.wolves) ? data.wolves : [],
+    events: Array.isArray(data.events) ? data.events : [],
+    history: Array.isArray(data.history) ? data.history : [],
+    idCounters: data.idCounters && typeof data.idCounters === 'object' ? data.idCounters : {}
+  };
+}
+
+function normalizeTiles(tiles, width, height) {
+  const out = Array.from({ length: height }, () => Array(width).fill(TILE_TYPES.GRASS));
+  for (let y = 0; y < height; y++) {
+    const row = Array.isArray(tiles[y]) ? tiles[y] : [];
+    for (let x = 0; x < width; x++) out[y][x] = VALID_TILE_TYPES.has(row[x]) ? row[x] : TILE_TYPES.GRASS;
+  }
+  return out;
+}
+
+function normalizeRegrowTimers(timers, width, height) {
+  const out = Array.from({ length: height }, () => Array(width).fill(0));
+  if (!Array.isArray(timers)) return out;
+  for (let y = 0; y < height; y++) {
+    const row = Array.isArray(timers[y]) ? timers[y] : [];
+    for (let x = 0; x < width; x++) {
+      const v = Number(row[x]);
+      out[y][x] = Number.isFinite(v) && v > 0 ? Math.min(120, v) : 0;
+    }
+  }
+  return out;
+}
+
+function normalizeStats(stats) {
+  const s = stats && typeof stats === 'object' ? stats : {};
+  const n = (k) => Math.max(0, Math.round(Number(s[k]) || 0));
+  return { rabbitBirths: n('rabbitBirths'), rabbitDeaths: n('rabbitDeaths'), wolfBirths: n('wolfBirths'), wolfDeaths: n('wolfDeaths'), successfulHunts: n('successfulHunts') };
+}
+
+function sanitizeEvent(ev) {
+  if (!ev || typeof ev !== 'object' || typeof ev.message !== 'string') return null;
+  return { id: Math.max(0, Math.round(Number(ev.id) || 0)), kind: typeof ev.kind === 'string' ? ev.kind : 'info', message: ev.message.slice(0, 160), time: Math.max(0, Number(ev.time) || 0) };
+}
+
+function sanitizeHistory(h) {
+  if (!h || typeof h !== 'object') return null;
+  return { t: Math.max(0, Number(h.t) || 0), rabbits: Math.max(0, Math.round(Number(h.rabbits) || 0)), wolves: Math.max(0, Math.round(Number(h.wolves) || 0)), grass: Math.max(0, Math.round(Number(h.grass) || 0)) };
 }
 
 function serializeEntity(e) {

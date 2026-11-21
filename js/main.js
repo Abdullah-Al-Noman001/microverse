@@ -582,12 +582,21 @@ function saveGame() {
 function openLoadDialog() {
   const saves = listSlots();
   saveListEl.innerHTML = '';
-  if (!saves.length) { const li = document.createElement('li'); li.className='hint small'; li.textContent='No saved worlds yet.'; saveListEl.appendChild(li); }
+  const note = document.createElement('li');
+  note.className = 'hint small';
+  note.textContent = 'Saves are stored in this browser (LocalStorage). Clearing site data or storage limits can remove them.';
+  saveListEl.appendChild(note);
+  if (saves.length === 0) {
+    const li = document.createElement('li'); li.className='hint small'; li.textContent='No saved worlds yet.'; saveListEl.appendChild(li);
+  }
   for (const slot of saves) {
     const li = document.createElement('li'); li.className='save-item';
     const meta = document.createElement('div'); meta.className='meta';
     const nm = document.createElement('div'); nm.className='name'; nm.textContent = slot.name;
-    const sub = document.createElement('div'); sub.className='sub'; sub.textContent = slot.savedAt ? new Date(slot.savedAt).toLocaleString() : '';
+    const ver = Number(slot?.payload?.version);
+    const verLabel = Number.isFinite(ver) ? `v${ver}` : 'unknown version';
+    const sub = document.createElement('div'); sub.className='sub';
+    sub.textContent = `${slot.savedAt ? new Date(slot.savedAt).toLocaleString() : 'Unknown time'} · ${verLabel}`;
     meta.appendChild(nm); meta.appendChild(sub);
     const actions = document.createElement('div'); actions.className='actions';
     const loadB = document.createElement('button'); loadB.className='top-btn'; loadB.textContent='Load';
@@ -598,6 +607,13 @@ function openLoadDialog() {
     li.appendChild(meta); li.appendChild(actions); saveListEl.appendChild(li);
   }
   loadOverlay.classList.remove('hidden');
+}
+
+function getSaveLoadErrorMessage(err) {
+  const msg = String(err?.message || err || '');
+  if (/Unsupported save version/i.test(msg)) return 'This save version is not supported by this build.';
+  if (/Invalid world data|Invalid save data/i.test(msg)) return 'Save data is invalid or corrupted.';
+  return 'Could not load save. It may be invalid or outdated.';
 }
 function doLoad(name) {
   const slot = loadSlot(name); if (!slot || !slot.payload) { showToast('Could not load save.'); return; }
@@ -616,7 +632,7 @@ function doLoad(name) {
     showToast(`Loaded "${worldNameInput.value}".`);
     sfx('ui');
   } catch (e) {
-    console.error(e); showToast('Save data invalid or outdated.');
+    console.error(e); showToast(getSaveLoadErrorMessage(e));
   }
 }
 

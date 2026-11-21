@@ -56,17 +56,18 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: verify item 7, then continue Phase 1
+### Immediate handoff: verify items 7–8, then finish Phase 1
 
-Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).** **Item 7 (world character card) implemented, browser verification pending**.
+Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).** **Item 7 and item 8 implemented, browser verification pending**.
 
 **2026-11-21 progress:**
 - **Item 7 implemented (pending UI verification):** generated worlds get 2 preset-compatible traits with named, bounded effects in `js/world.js` (`WORLD_TRAITS`, `pickWorldTraits`, `getWorldRules`, `traitEffects`). Traits affect real sim values: grass regrow time, initial rabbit/wolf counts, rabbit hunger rate, wolf vision. `index.html`/`style.css`/`main.js` add a “World Character” card showing trait names, descriptions, and rule changes. Save/load serializes world traits/regrow time/effects with defaults for old saves.
-- **Checks run:** `node --check` passed on touched JS modules; Node smoke check confirmed trait effects change `grassRegrowTime`, spawn counts, rabbit hunger rate, and wolf vision.
+- **Item 8 implemented (pending UI verification):** save format bumped to `SAVE_VERSION=2` in `js/simulation.js` with `migrateSaveData` (v1→v2 defaults for preset/traits/regrow/effects) and validation/normalization for version, world dimensions/tileSize, tile arrays/types, regrow timers, stats/events/history/entities. `js/main.js` shows clearer load errors and a LocalStorage note/version label in the load dialog.
+- **Checks run:** `node --check` passed on all JS modules; Node smoke checks confirmed trait effects and v1 migration/unsupported-version/invalid-tile handling.
 
-**Not verified in browser:** trait card readability/layout on desktop/small screens, traits change across New Worlds/presets, rule text matches observed behavior, save/load preserves traits, challenges unaffected.
+**Not verified in browser:** item 7 trait card/layout/rule behavior/save-load; item 8 old-save migration, malformed-save handling UI message, load dialog note/version label, normal save/load/delete flows.
 
-Next agent should: browser-verify item 7, mark complete, then build item 8 (save format preparation/migration/validation). Keep item 45 in scope.
+Next agent should: browser-verify items 7–8, mark complete, then proceed to Phase 1 checkpoint and Phase 2 item 9. Keep item 45 in scope.
 
 Relevant files: `js/world.js`, `js/simulation.js`, `js/main.js`, `index.html`, `style.css`, `projectPLAN.md`.
 
@@ -94,7 +95,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **5. Camera navigation.** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. User-verified 2026-11-20.
 - [x] **6. World-generation presets.** Meadow, Wetland, and Woodland profiles with named/bounded terrain/resource parameters and next-world preset selector added. User-verified 2026-11-21: visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
 - [ ] **7. World character card (implemented; UI verification pending).** Each generated world gets 2 readable traits with named/bounded effects on real sim values (grass regrow, initial populations, rabbit hunger, wolf vision); World Character card shows trait rules. Verify in browser before marking complete.
-- [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
+- [ ] **8. Save format preparation (implemented; UI verification pending).** Save version bumped to v2 with v1 migration/defaults, dimension/tile/timer validation, and clearer load/storage messaging. Verify old-save load, invalid-save message, and normal save/load flows in browser before marking complete.
 
 **Checkpoint:** A player can make, navigate, name, save, and reload a world with a distinct habitat profile.
 
@@ -170,7 +171,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Verify **item 7** in browser (trait card, rule effects, save/load, challenges), mark complete, then build item 8 save format preparation.
+1. Browser-verify **items 7–8** (trait card/rules, v1 save migration, invalid-save handling, save/load/delete UI), mark complete if passing.
 2. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
 3. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
 4. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
