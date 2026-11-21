@@ -56,17 +56,16 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: item 6 world-generation presets in progress
+### Immediate handoff: build item 7
 
-Status: **items 2–5, 44 complete (item 5 user-verified 2026-11-20).** **Item 6 (world-generation presets) in progress** — implementation started, not yet verified.
+Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).**
 
-**2026-11-20 progress (this session):**
-- **Item 5 complete (user-verified):** zoom/pan with correct tile hit-testing/brush preview/inspection at zoom levels.
-- **Item 6 started:** adding Meadow/Wetland/Woodland generation profiles with named, bounded terrain parameters and a next-world preset selector (applies on New World).
+**2026-11-21 progress:**
+- **Item 6 complete (user-verified):** Meadow/Wetland/Woodland presets with named/bounded terrain/resource params and next-world preset selector; visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
 
-Next agent should: finish item 6 implementation (profiles affect terrain distribution/resources clearly, params named/bounded), verify in browser (each preset visibly distinct on New World, works across sizes, save/load OK), mark complete, then proceed to item 7. Keep item 45 (any-screen support) in scope.
+Next agent should: build **item 7 (world character card)** — give each generated world 2–3 readable traits (e.g., Rainy/Sparse grass/Sheltered groves) and make those traits affect actual simulation values; show which rules each trait changes. Keep item 45 (any-screen support) in scope.
 
-Relevant files: `js/world.js`, `js/main.js`, `index.html`, `style.css`, `projectPLAN.md`.
+Relevant files: `js/world.js`, `js/main.js`, `js/simulation.js`, `index.html`, `style.css`, `projectPLAN.md`.
 
 ### Instructions for future agents
 
@@ -90,7 +89,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **3. Brush shape options.** Square/Round controls and matching tile footprints are implemented and verified as part of item 2.
 - [x] **4. World size choices.** Small (32×20), Standard (40×25, current default), and Wide (48×30) choices added for next New World only (current world unchanged). Challenges fixed to 40×25; tile size remains 16; size display reflects current world. Fix applied so selected size is read at New World time. User-verified 2026-11-20.
 - [x] **5. Camera navigation.** Zoom (+/−/1:1, Ctrl+wheel) and middle-mouse pan added; hit-testing uses canvas buffer coords to preserve tile mapping/brush previews/inspection at zoom. User-verified 2026-11-20.
-- [ ] **6. World-generation presets.** Add a few authored generation profiles such as Meadow, Wetland, and Woodland. Each should change terrain distribution and starting resources in a clear way. Keep generation parameters named and bounded rather than scattering magic numbers through the UI.
+- [x] **6. World-generation presets.** Meadow, Wetland, and Woodland profiles with named/bounded terrain/resource parameters and next-world preset selector added. User-verified 2026-11-21: visible distinction across sizes, next-world-only behavior, save/load/challenges unaffected.
 - [ ] **7. World character card.** Give each generated world two or three readable traits, such as “Rainy,” “Sparse grass,” or “Sheltered groves,” and make those traits affect actual simulation values. Show the player which rules each trait changes.
 - [ ] **8. Save format preparation.** Version world data before adding more world-level state; preserve compatibility with existing local saves. Add a migration/default path for older version-1 saves and validate malformed dimensions and tile arrays.
 
@@ -168,7 +167,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Finish and verify **item 6**: Meadow, Wetland, and Woodland generation profiles with named/bounded parameters and clear terrain/resource differences; mark complete when verified.
+1. Build **item 7**: world character card with 2–3 readable traits per generated world; connect each trait to a real simulation parameter and show the rule changes.
 2. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
 3. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
 4. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.

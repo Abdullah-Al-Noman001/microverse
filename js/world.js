@@ -14,21 +14,21 @@ export const WORLD_CONFIG = {
 export const WORLD_PRESETS = {
   meadow: {
     name: 'Meadow',
-    pondCount: [1, 1], pondRx: [3, 5], pondRy: [2, 4],
-    treeDensity: [0.018, 0.028], bushDensity: [0.022, 0.034], rockDensity: [0.010, 0.017],
-    treePad: 2, bushPad: 1, rockPad: 1
+    pondCount: [1, 1], pondRadiusX: [3, 5], pondRadiusY: [2, 4],
+    treeDensity: [0.018, 0.024], bushDensity: [0.024, 0.032], rockDensity: [0.010, 0.014],
+    treePadding: 2, bushPadding: 1, rockPadding: 1
   },
   wetland: {
     name: 'Wetland',
-    pondCount: [2, 3], pondRx: [3, 6], pondRy: [2, 4],
-    treeDensity: [0.008, 0.015], bushDensity: [0.030, 0.045], rockDensity: [0.006, 0.012],
-    treePad: 2, bushPad: 1, rockPad: 1
+    pondCount: [2, 3], pondRadiusX: [3, 6], pondRadiusY: [2, 4],
+    treeDensity: [0.006, 0.012], bushDensity: [0.034, 0.046], rockDensity: [0.004, 0.008],
+    treePadding: 2, bushPadding: 1, rockPadding: 1
   },
   woodland: {
     name: 'Woodland',
-    pondCount: [0, 1], pondRx: [2, 4], pondRy: [2, 3],
-    treeDensity: [0.045, 0.065], bushDensity: [0.018, 0.028], rockDensity: [0.014, 0.022],
-    treePad: 2, bushPad: 1, rockPad: 1
+    pondCount: [0, 1], pondRadiusX: [2, 3], pondRadiusY: [1, 3],
+    treeDensity: [0.055, 0.075], bushDensity: [0.014, 0.022], rockDensity: [0.012, 0.018],
+    treePadding: 2, bushPadding: 1, rockPadding: 1
   }
 };
 
@@ -51,16 +51,16 @@ function generateTerrain(tiles, occupied, width, height, preset) {
   const area = width * height;
   const pondCount = clamp(randIntIn(preset.pondCount), 0, 4);
   for (let i = 0; i < pondCount; i++) {
-    const rx = clamp(randIntIn(preset.pondRx), 2, Math.max(2, Math.floor(width / 3)));
-    const ry = clamp(randIntIn(preset.pondRy), 2, Math.max(2, Math.floor(height / 3)));
+    const rx = clamp(randIntIn(preset.pondRadiusX), 2, Math.max(2, Math.floor(width / 4)));
+    const ry = clamp(randIntIn(preset.pondRadiusY), 1, Math.max(2, Math.floor(height / 4)));
     placePond(tiles, occupied, width, height, rx, ry);
   }
   const trees = clamp(Math.round(randInRange(preset.treeDensity) * area), 0, Math.floor(area * 0.20));
   const bushes = clamp(Math.round(randInRange(preset.bushDensity) * area), 0, Math.floor(area * 0.20));
   const rocks = clamp(Math.round(randInRange(preset.rockDensity) * area), 0, Math.floor(area * 0.15));
-  placeObjects(tiles, occupied, width, height, TILE_TYPES.TREE, trees, preset.treePad);
-  placeObjects(tiles, occupied, width, height, TILE_TYPES.BUSH, bushes, preset.bushPad);
-  placeObjects(tiles, occupied, width, height, TILE_TYPES.ROCK, rocks, preset.rockPad);
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.TREE, trees, preset.treePadding);
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.BUSH, bushes, preset.bushPadding);
+  placeObjects(tiles, occupied, width, height, TILE_TYPES.ROCK, rocks, preset.rockPadding);
 }
 
 export function cloneWorld(world) {
