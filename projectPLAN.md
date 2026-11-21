@@ -172,9 +172,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 ## Exact next steps
 
 1. Browser-verify **items 7–8** (trait card/rules, v1 save migration, invalid-save handling, save/load/delete UI), mark complete if passing.
-2. Build item 7: show generated world traits and connect each trait to a real simulation parameter.
-3. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
-4. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
+2. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
+3. Continue Phase 2 (Rain power chain) after Phase 1 checkpoint.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 
