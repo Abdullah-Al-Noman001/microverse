@@ -143,13 +143,16 @@ function drawTileHighlight(ctx, x, y, size, color, lw=2) {
   ctx.strokeStyle = color; ctx.lineWidth = lw;
   ctx.strokeRect(x*size+1, y*size+1, size-2, size-2);
 }
+const PREVIEW_POWER_TOOLS = { rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' } };
+
 function drawBrushPreview(ctx, world, x, y, brush, settings) {
   if (!inBounds(world,x,y)) return;
   const size = world.tileSize;
   const tool = brush.tool;
-  const brushSize = ['select','rabbit','wolf'].includes(tool) ? 1 : Math.max(1, Number(brush.size) || 1);
+  const power = PREVIEW_POWER_TOOLS[tool];
+  const brushSize = power ? power.size : (['select','rabbit','wolf'].includes(tool) ? 1 : Math.max(1, Number(brush.size) || 1));
   const radius = Math.floor(brushSize / 2);
-  const shape = ['select','rabbit','wolf'].includes(tool) ? 'square' : brush.shape;
+  const shape = power ? power.shape : (['select','rabbit','wolf'].includes(tool) ? 'square' : brush.shape);
   const cells = [];
   const cellKeys = new Set();
   for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
@@ -158,7 +161,8 @@ function drawBrushPreview(ctx, world, x, y, brush, settings) {
     cellKeys.add(`${dx},${dy}`);
   }
   let color = 'rgba(255,255,255,0.6)';
-  if (tool === 'erase') color = 'rgba(255,120,120,0.7)';
+  if (power) color = power.color;
+  else if (tool === 'erase') color = 'rgba(255,120,120,0.7)';
   else if (tool === 'rabbit' || tool === 'wolf') color = 'rgba(120,220,255,0.75)';
   else color = 'rgba(120,255,160,0.7)';
   ctx.save();

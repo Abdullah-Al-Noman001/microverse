@@ -47,6 +47,9 @@ button,input,select{font:inherit}
 .tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .tool-btn{padding:7px 6px;font-size:.85rem}
 .tool-btn.active{background:#2e5238;border-color:var(--accent-dark);color:var(--hi);box-shadow:inset 0 0 0 1px rgba(183,226,122,.15)}
+.power-btn{border-color:#3d6178;color:#b9dff5}
+.power-btn.active{background:#244759;border-color:#5f9ec2;color:#e0f5ff;box-shadow:inset 0 0 0 1px rgba(120,190,255,.2)}
+.power-hint{margin-top:6px}
 .brush-info{padding:8px;background:rgba(0,0,0,.2);border:1px solid #233329;border-radius:6px;color:var(--text);font-size:.9rem}
 .brush-size-label{margin:8px 0 5px}
 .brush-size-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}

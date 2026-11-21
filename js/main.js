@@ -80,7 +80,10 @@ let lastTime = 0;
 let selected = null; // creature
 let selectedTile = null;
 let hoverTile = null;
-let brush = { tool: 'select', size: 1, shape: 'square' }; // terrain brushes use 1, 3, or 5 tile footprints
+const POWER_TOOLS = { rain: { label: 'Rain', brushSize: 3, brushShape: 'round', color: 'rgba(120,190,255,0.82)' } };
+function isPowerTool(tool) { return !!POWER_TOOLS[tool]; }
+function isTerrainTool(tool) { return ['grass','dirt','tree','bush','rock','water','erase'].includes(tool); }
+let brush = { tool: 'select', size: 1, shape: 'square', category: 'terrain' }; // terrain brushes use 1, 3, or 5 tile footprints
 let isPainting = false;
 let isPanning = false;
 let panStart = null;
@@ -305,10 +308,16 @@ function updatePlayPauseUI() {
 
 function setBrush(tool) {
   brush.tool = tool;
+  brush.category = isPowerTool(tool) ? 'power' : isTerrainTool(tool) ? 'terrain' : 'utility';
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
-  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf'})[tool] || tool;
-  const shapeLabel = brush.shape === 'round' ? ' Round' : '';
-  brushInfo.textContent = ['select','rabbit','wolf'].includes(tool) ? label : `${label} · ${brush.size}×${brush.size}${shapeLabel}`;
+  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf',rain:'Rain Power'})[tool] || tool;
+  if (isPowerTool(tool)) {
+    const p = POWER_TOOLS[tool];
+    brushInfo.textContent = `${label} · ${p.brushSize}×${p.brushSize} ${p.brushShape}`;
+  } else {
+    const shapeLabel = brush.shape === 'round' ? ' Round' : '';
+    brushInfo.textContent = ['select','rabbit','wolf'].includes(tool) ? label : `${label} · ${brush.size}×${brush.size}${shapeLabel}`;
+  }
 }
 
 function setBrushSize(size) {
@@ -387,6 +396,15 @@ function applyToolAt(tile, isDrag=false) {
     return;
   }
 
+  if (isPowerTool(brush.tool)) {
+    if (isDrag) return;
+    selectedTile = { x: tile.x, y: tile.y };
+    showToast(`${POWER_TOOLS[brush.tool].label} power targeting ready (effect in next step).`);
+    sfx('ui');
+    lastPaintKey = key; updateInspectors();
+    return;
+  }
+
   const entities = sim;
   let changed = false;
   const radius = Math.floor(brush.size / 2);
@@ -428,7 +446,7 @@ function onCanvasMove(e) {
   }
   const t = canvasToTile(e); hoverTile = t;
   if (isPainting && t) {
-    if (['select','rabbit','wolf'].includes(brush.tool)) return;
+    if (['select','rabbit','wolf'].includes(brush.tool) || isPowerTool(brush.tool)) return;
     const from = lastPaintCenter || t;
     for (const p of interpolateTiles(from.x, from.y, t.x, t.y)) {
       if (p.x === from.x && p.y === from.y && lastPaintCenter) continue;

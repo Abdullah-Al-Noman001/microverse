@@ -1,4 +1,4 @@
-# Microverse Project Plan
+﻿# Microverse Project Plan
 
 ## Product direction
 
@@ -56,21 +56,18 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: verify items 7–8, then finish Phase 1
+### Immediate handoff: verify item 9, then continue Rain chain
 
-Status: **items 2–6, 44 complete (item 6 user-verified 2026-11-21).** **Item 7 and item 8 implemented, browser verification pending**.
+Status: **items 2–8, 44 complete (items 7–8 user-verified 2026-11-22).** **Item 9 (power-tool section) implemented, browser verification pending**.
 
-**2026-11-21 progress:**
-- **Item 7 implemented (pending UI verification):** generated worlds get 2 preset-compatible traits with named, bounded effects in `js/world.js` (`WORLD_TRAITS`, `pickWorldTraits`, `getWorldRules`, `traitEffects`). Traits affect real sim values: grass regrow time, initial rabbit/wolf counts, rabbit hunger rate, wolf vision. `index.html`/`style.css`/`main.js` add a “World Character” card showing trait names, descriptions, and rule changes. Save/load serializes world traits/regrow time/effects with defaults for old saves.
-- **Item 8 implemented (pending UI verification):** save format bumped to `SAVE_VERSION=2` in `js/simulation.js` with `migrateSaveData` (v1→v2 defaults for preset/traits/regrow/effects) and validation/normalization for version, world dimensions/tileSize, tile arrays/types, regrow timers, stats/events/history/entities. `js/main.js` shows clearer load errors and a LocalStorage note/version label in the load dialog.
-- **Checks run:** `node --check` passed on all JS modules; Node smoke checks confirmed trait effects and v1 migration/unsupported-version/invalid-tile handling.
+**2026-11-22 progress:**
+- **Item 9 implemented (pending UI verification):** added “Nature Powers” category in `index.html` with `Rain` target tool; `js/main.js` separates power tools from terrain/creature tools, shows power brush info, handles power target click without terrain edits or painting drag, and keeps terrain brush size/shape controls for terrain tools; `js/renderer.js` renders power brush preview (3×3 round blue); `style.css` styles power buttons.
 
-**Not verified in browser:** item 7 trait card/layout/rule behavior/save-load; item 8 old-save migration, malformed-save handling UI message, load dialog note/version label, normal save/load/delete flows.
+**Not verified in browser:** power section visible/clear, Rain selection/preview/target click behavior, terrain/creature tools unaffected, pause/edit behavior unchanged, no regressions on small screens.
 
-Next agent should: browser-verify items 7–8, mark complete, then proceed to Phase 1 checkpoint and Phase 2 item 9. Keep item 45 in scope.
+Next agent should: browser-verify item 9, mark complete, then build item 10 (Rain first version: temporary rain cloud over small area, visible active area/duration). Keep item 45 in scope.
 
-Relevant files: `js/world.js`, `js/simulation.js`, `js/main.js`, `index.html`, `style.css`, `projectPLAN.md`.
-
+Relevant files: `js/main.js`, `js/renderer.js`, `index.html`, `style.css`, `projectPLAN.md`.
 ### Instructions for future agents
 
 - Before editing, run `git status --short --branch` and inspect the existing implementation around the target feature. Preserve unrelated user edits.
@@ -103,7 +100,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 **Goal:** Give the player interventions that create understandable ecological ripples.
 
-- [ ] **9. Power-tool section.** Add a separate power category and a clear target/brush interaction without changing terrain tools.
+- [ ] **9. Power-tool section (implemented; UI verification pending).** Separate Nature Powers category added with Rain target tool and power brush preview/target click; terrain tools and brush controls unchanged. Verify in browser before marking complete.
 - [ ] **10. Rain, first version.** Let the player place a temporary rain cloud over a small area. Show where it is active and how long it lasts.
 - [ ] **11. Rain affects the world.** Have rain speed grass recovery in its area. Keep the first implementation limited to one visible, measurable effect.
 - [ ] **12. Rain feedback.** Add simple rain particles, a short event-log entry, and a readable indicator for affected tiles.
@@ -190,3 +187,4 @@ After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of sma
 ## How to use this plan
 
 Treat the roadmap as a direction, not a promise to ship every item. At the end of each checkpoint, play the project and ask: **Did this create a new story or a more interesting choice?** If not, simplify or replace the feature before expanding further.
+
