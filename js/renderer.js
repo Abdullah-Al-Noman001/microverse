@@ -152,7 +152,6 @@ function drawRains(ctx, world, rains, time) {
   for (const rain of rains) {
     const radius = Math.max(0, Math.round(Number(rain.radius) || 1));
     const shape = rain.shape === 'round' ? 'round' : 'square';
-    const rem = Math.max(0, Number(rain.remaining) || 0);
     const cells = [];
     for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
       if (shape === 'round' && dx*dx + dy*dy > radius*radius) continue;
@@ -176,21 +175,6 @@ function drawRains(ctx, world, rains, time) {
       const py = c.y * size + ((phase / 8) * size);
       ctx.beginPath(); ctx.moveTo(px + 0.5, py + 0.5); ctx.lineTo(px + 0.5, py + 3.5); ctx.stroke();
     }
-    ctx.restore();
-
-    const label = `${rem.toFixed(1)}s`;
-    ctx.save();
-    ctx.font = '9px monospace';
-    ctx.textBaseline = 'top';
-    const tw = Math.ceil(ctx.measureText(label).width);
-    const lx = rain.x * size + 2;
-    const ly = Math.max(0, (rain.y - radius) * size - 12);
-    ctx.fillStyle = 'rgba(20,40,55,0.8)';
-    ctx.fillRect(lx - 2, ly - 1, tw + 4, 11);
-    ctx.strokeStyle = 'rgba(140,210,255,0.9)';
-    ctx.strokeRect(lx - 2.5, ly - 1.5, tw + 5, 12);
-    ctx.fillStyle = '#dff5ff';
-    ctx.fillText(label, lx, ly);
     ctx.restore();
   }
 }
