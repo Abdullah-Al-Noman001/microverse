@@ -4,6 +4,7 @@ import { createRabbit, createWolf, RABBIT_CONFIG, WOLF_CONFIG, getEntityRenderPo
 const MAX_EVENTS = 120;
 const MAX_HISTORY = 240;
 const HISTORY_INTERVAL = 1.0;
+export const RAIN_CONFIG = { duration: 12, brushSize: 3, shape: 'round' };
 
 export function createSimulation(world, options = {}) {
   const rabbits = options.initialRabbits ?? spawnInitialRabbits(world);
@@ -12,6 +13,7 @@ export function createSimulation(world, options = {}) {
     world,
     rabbits,
     wolves,
+    rains: Array.isArray(options.rains) ? options.rains : [],
     stats: {
       rabbitBirths: 0, rabbitDeaths: 0,
       wolfBirths: 0, wolfDeaths: 0,
@@ -23,7 +25,8 @@ export function createSimulation(world, options = {}) {
     _historyTimer: 0,
     _eventSeq: 1,
     _regrowBatch: 0,
-    _regrowFlush: 0
+    _regrowFlush: 0,
+    _rainSeq: 1
   };
   if (!options.skipWelcome) addEvent(sim, 'world', buildWorldIntro(sim));
   recordHistory(sim, true);
@@ -33,6 +36,7 @@ export function createSimulation(world, options = {}) {
 export function resetSimulation(sim) {
   sim.rabbits.length = 0;
   sim.wolves.length = 0;
+  sim.rains.length = 0;
   sim.stats.rabbitBirths = 0; sim.stats.rabbitDeaths = 0;
   sim.stats.wolfBirths = 0; sim.stats.wolfDeaths = 0;
   sim.stats.successfulHunts = 0;
@@ -40,6 +44,7 @@ export function resetSimulation(sim) {
   sim.events.length = 0; sim._eventSeq = 1;
   sim.history.length = 0; sim._historyTimer = 0;
   sim._regrowBatch = 0; sim._regrowFlush = 0;
+  sim._rainSeq = 1;
   const rabbits = spawnInitialRabbits(sim.world);
   const wolves = spawnInitialWolves(sim.world, rabbits);
   sim.rabbits.push(...rabbits);
@@ -97,6 +102,7 @@ function spawnInitialWolves(world, rabbits) {
 
 export function stepSimulation(sim, dt) {
   sim.time += dt;
+  updateRains(sim, dt);
 
   sim._regrowBatch = 0;
   updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; });
@@ -550,6 +556,34 @@ export function addWolf(sim, x, y) {
   return w;
 }
 
+export function addRain(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return null;
+  const rain = {
+    id: sim._rainSeq++,
+    x: clampInt(x, 0, sim.world.width - 1),
+    y: clampInt(y, 0, sim.world.height - 1),
+    radius: Math.floor(RAIN_CONFIG.brushSize / 2),
+    shape: RAIN_CONFIG.shape,
+    duration: RAIN_CONFIG.duration,
+    remaining: RAIN_CONFIG.duration
+  };
+  sim.rains.push(rain);
+  addEvent(sim, 'world', `Rain cloud formed at (${rain.x}, ${rain.y}) for ${rain.duration}s.`);
+  return rain;
+}
+
+function updateRains(sim, dt) {
+  if (!Array.isArray(sim.rains) || sim.rains.length === 0) return;
+  for (let i = sim.rains.length - 1; i >= 0; i--) {
+    const rain = sim.rains[i];
+    rain.remaining = Math.max(0, (Number(rain.remaining) || 0) - dt);
+    if (rain.remaining <= 0) {
+      sim.rains.splice(i, 1);
+      addEvent(sim, 'world', `Rain cloud at (${rain.x}, ${rain.y}) cleared.`);
+    }
+  }
+}
+
 export function addEvent(sim, kind, message) {
   const ev = { id: sim._eventSeq++, kind, message, time: sim.time };
   sim.events.push(ev);
@@ -607,13 +641,15 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
       traitEffects: sim.world.traitEffects && typeof sim.world.traitEffects === 'object' ? { ...sim.world.traitEffects } : {}
     },
     stats: { ...sim.stats },
+    rains: (sim.rains || []).map(r => ({ id: r.id, x: r.x, y: r.y, radius: r.radius, shape: r.shape, duration: r.duration, remaining: r.remaining })),
     rabbits: sim.rabbits.map(serializeEntity),
     wolves: sim.wolves.map(serializeEntity),
     events: sim.events.slice(-60),
     history: sim.history.slice(-120),
     idCounters: {
       rabbit: sim.rabbits.reduce((m,e)=>Math.max(m,e.id),0),
-      wolf: sim.wolves.reduce((m,e)=>Math.max(m,e.id),0)
+      wolf: sim.wolves.reduce((m,e)=>Math.max(m,e.id),0),
+      rain: (sim.rains || []).reduce((m,e)=>Math.max(m,e.id||0),0)
     }
   };
 }
@@ -633,11 +669,12 @@ export function hydrateSimulation(data) {
   const sim = {
     world,
     rabbits: [], wolves: [],
+    rains: Array.isArray(migrated.rains) ? migrated.rains.map(r => sanitizeRain(r, world)).filter(Boolean) : [],
     stats: normalizeStats(migrated.stats),
     time: Math.max(0, Number(migrated.time) || 0),
     events: Array.isArray(migrated.events) ? migrated.events.slice(-MAX_EVENTS).map(sanitizeEvent).filter(Boolean) : [],
     history: Array.isArray(migrated.history) ? migrated.history.slice(-MAX_HISTORY).map(sanitizeHistory).filter(Boolean) : [],
-    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0
+    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1
   };
   setIdCounters(migrated.idCounters?.rabbit || 0, migrated.idCounters?.wolf || 0);
   for (const r of (migrated.rabbits || [])) {
@@ -663,6 +700,7 @@ export function hydrateSimulation(data) {
     sim.rabbits.reduce((m, e) => Math.max(m, e.id), migrated.idCounters?.rabbit || 0),
     sim.wolves.reduce((m, e) => Math.max(m, e.id), migrated.idCounters?.wolf || 0)
   );
+  sim._rainSeq = sim.rains.reduce((m, r) => Math.max(m, r.id || 0), migrated.idCounters?.rain || 0) + 1;
   sim._eventSeq = sim.events.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
   if (!sim.history.length) recordHistory(sim, true);
   return sim;
@@ -711,6 +749,7 @@ function normalizeSaveV2(data) {
       traitEffects: w.traitEffects && typeof w.traitEffects === 'object' ? { ...w.traitEffects } : {}
     },
     stats: normalizeStats(data.stats),
+    rains: Array.isArray(data.rains) ? data.rains : [],
     rabbits: Array.isArray(data.rabbits) ? data.rabbits : [],
     wolves: Array.isArray(data.wolves) ? data.wolves : [],
     events: Array.isArray(data.events) ? data.events : [],
@@ -755,6 +794,22 @@ function sanitizeEvent(ev) {
 function sanitizeHistory(h) {
   if (!h || typeof h !== 'object') return null;
   return { t: Math.max(0, Number(h.t) || 0), rabbits: Math.max(0, Math.round(Number(h.rabbits) || 0)), wolves: Math.max(0, Math.round(Number(h.wolves) || 0)), grass: Math.max(0, Math.round(Number(h.grass) || 0)) };
+}
+
+function sanitizeRain(r, world) {
+  if (!r || typeof r !== 'object') return null;
+  const duration = clamp(Number(r.duration) || RAIN_CONFIG.duration, 1, 120);
+  const remaining = clamp(Number(r.remaining), 0, duration);
+  if (remaining <= 0) return null;
+  return {
+    id: Math.max(0, Math.round(Number(r.id) || 0)),
+    x: clampInt(r.x, 0, world.width - 1),
+    y: clampInt(r.y, 0, world.height - 1),
+    radius: clampInt(r.radius ?? Math.floor(RAIN_CONFIG.brushSize / 2), 0, 8),
+    shape: r.shape === 'round' ? 'round' : 'square',
+    duration,
+    remaining
+  };
 }
 
 function serializeEntity(e) {

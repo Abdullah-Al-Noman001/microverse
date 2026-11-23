@@ -1,5 +1,5 @@
 import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES, getWorldRules } from './world.js';
-import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
+import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addRain, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
 import { loadPrefs, savePrefs, saveSlot, loadSlot, listSlots, deleteSlot } from './storage.js';
@@ -399,9 +399,12 @@ function applyToolAt(tile, isDrag=false) {
   if (isPowerTool(brush.tool)) {
     if (isDrag) return;
     selectedTile = { x: tile.x, y: tile.y };
-    showToast(`${POWER_TOOLS[brush.tool].label} power targeting ready (effect in next step).`);
-    sfx('ui');
-    lastPaintKey = key; updateInspectors();
+    if (brush.tool === 'rain') {
+      const rain = addRain(sim, tile.x, tile.y);
+      if (rain) { showToast(`Rain cloud placed (${rain.duration}s).`); sfx('place'); }
+      else showToast('Could not place rain there.');
+    }
+    lastPaintKey = key; refreshAll();
     return;
   }
 
@@ -709,7 +712,7 @@ function loop(ts) {
   }
 
   const nowSec = ts / 1000;
-  render(ctx, { world: sim.world, rabbits: sim.rabbits, wolves: sim.wolves, selected, selectedTile, hoverTile, brush, settings: prefs, time: nowSec });
+  render(ctx, { world: sim.world, rabbits: sim.rabbits, wolves: sim.wolves, rains: sim.rains, selected, selectedTile, hoverTile, brush, settings: prefs, time: nowSec });
   uiAccum += frame;
   if (uiAccum > 0.12) {
     uiAccum = 0;

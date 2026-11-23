@@ -56,18 +56,19 @@ This section is the source of truth for an agent resuming work. Check the reposi
 - Terrain brush stroke de-duplication uses `paintedStrokeTiles` in `js/main.js`; previews are drawn by `drawBrushPreview` in `js/renderer.js`.
 - Rabbits and wolves, grass regrowth, simulation controls, event log, analytics, local saves, and three challenge scenarios already exist.
 
-### Immediate handoff: verify item 9, then continue Rain chain
+### Immediate handoff: verify item 10, then continue Rain effects
 
-Status: **items 2–8, 44 complete (items 7–8 user-verified 2026-11-22).** **Item 9 (power-tool section) implemented, browser verification pending**.
+Status: **items 2-9, 44 complete (items 7-9 user/browser-verified 2026-11-22/2026-11-24).** **Item 10 (Rain, first version) implemented, browser verification pending**.
 
-**2026-11-22 progress:**
-- **Item 9 implemented (pending UI verification):** added “Nature Powers” category in `index.html` with `Rain` target tool; `js/main.js` separates power tools from terrain/creature tools, shows power brush info, handles power target click without terrain edits or painting drag, and keeps terrain brush size/shape controls for terrain tools; `js/renderer.js` renders power brush preview (3×3 round blue); `style.css` styles power buttons.
+**2026-11-24 progress:**
+- **Item 9 browser-verified and marked complete:** Nature Powers section visible, Rain selects with 3x3 round preview, click targets without terrain edits/painting drag, terrain/creature tools and brush size/shape controls unaffected, pause/edit behavior unchanged, no major small-screen overflow observed.
+- **Item 10 implemented (pending UI verification):** `addRain` creates temporary 3x3 round rain clouds (12s) in `js/simulation.js`; rains tick down/expire with event-log entries; `js/main.js` places rain on target click and passes rains to renderer; `js/renderer.js` draws active rain area, streaks, and remaining-time label; saves normalize/migrate rain data (v2-compatible).
 
-**Not verified in browser:** power section visible/clear, Rain selection/preview/target click behavior, terrain/creature tools unaffected, pause/edit behavior unchanged, no regressions on small screens.
+**Not verified in browser:** rain placement in multiple locations, duration/expiry behavior across pause/play/speed, active area clarity, save/load with active rains, small-screen/touch behavior, regressions.
 
-Next agent should: browser-verify item 9, mark complete, then build item 10 (Rain first version: temporary rain cloud over small area, visible active area/duration). Keep item 45 in scope.
+Next agent should: browser-verify item 10, mark complete, then build item 11 (rain speeds grass recovery in affected area; one visible/measurable effect). Keep item 45 in scope.
 
-Relevant files: `js/main.js`, `js/renderer.js`, `index.html`, `style.css`, `projectPLAN.md`.
+Relevant files: `js/simulation.js`, `js/main.js`, `js/renderer.js`, `projectPLAN.md`.
 ### Instructions for future agents
 
 - Before editing, run `git status --short --branch` and inspect the existing implementation around the target feature. Preserve unrelated user edits.
@@ -100,8 +101,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 **Goal:** Give the player interventions that create understandable ecological ripples.
 
-- [ ] **9. Power-tool section (implemented; UI verification pending).** Separate Nature Powers category added with Rain target tool and power brush preview/target click; terrain tools and brush controls unchanged. Verify in browser before marking complete.
-- [ ] **10. Rain, first version.** Let the player place a temporary rain cloud over a small area. Show where it is active and how long it lasts.
+- [x] **9. Power-tool section.** Nature Powers category with Rain target tool, 3x3 round power preview, target click without terrain edits/painting drag; terrain/creature tools and brush controls unchanged. Browser-verified 2026-11-24.
+- [ ] **10. Rain, first version (implemented; UI verification pending).** Places temporary 3x3 round rain cloud (12s), shows active area and remaining duration, logs form/clear events. Verify in browser before marking complete.
 - [ ] **11. Rain affects the world.** Have rain speed grass recovery in its area. Keep the first implementation limited to one visible, measurable effect.
 - [ ] **12. Rain feedback.** Add simple rain particles, a short event-log entry, and a readable indicator for affected tiles.
 - [ ] **13. Bloom.** Add a temporary flowering/food-rich patch that attracts rabbits and supports pollinators later.
@@ -168,9 +169,9 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Build **item 9**: add power-tool section/category and clear target/brush interaction without changing terrain tools.
-2. Address item 45 (any-screen support) early as UI/layout work evolves, so new features remain usable on any screen size.
-3. Continue Phase 2 Rain power chain (items 10–12) after item 9.
+1. Browser-verify **item 10** (placement, visible active area/duration, expiry, pause/play/speed, save/load with active rains, no regressions/small-screen issues), then mark complete.
+2. Build **item 11**: rain speeds grass recovery in affected area (one visible, measurable effect).
+3. Address item 45 (any-screen support) early as UI/layout work evolves.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
 

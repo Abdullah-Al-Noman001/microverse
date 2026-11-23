@@ -10,9 +10,10 @@ export function setupCanvas(canvas, world) {
 }
 
 export function render(ctx, state) {
-  const { world, rabbits, wolves, selected, selectedTile, hoverTile, brush, settings, time } = state;
+  const { world, rabbits, wolves, rains, selected, selectedTile, hoverTile, brush, settings, time } = state;
   renderWorld(ctx, world, time, settings);
   if (settings?.showGrid) drawGrid(ctx, world);
+  drawRains(ctx, world, rains, time);
   if (selectedTile) drawTileHighlight(ctx, selectedTile.x, selectedTile.y, world.tileSize, '#ffe08a', 2);
   if (hoverTile && brush && brush.tool) drawBrushPreview(ctx, world, hoverTile.x, hoverTile.y, brush, settings);
   renderEntities(ctx, world, rabbits, wolves, selected, time, settings);
@@ -144,6 +145,55 @@ function drawTileHighlight(ctx, x, y, size, color, lw=2) {
   ctx.strokeRect(x*size+1, y*size+1, size-2, size-2);
 }
 const PREVIEW_POWER_TOOLS = { rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' } };
+
+function drawRains(ctx, world, rains, time) {
+  if (!Array.isArray(rains) || rains.length === 0) return;
+  const size = world.tileSize;
+  for (const rain of rains) {
+    const radius = Math.max(0, Math.round(Number(rain.radius) || 1));
+    const shape = rain.shape === 'round' ? 'round' : 'square';
+    const rem = Math.max(0, Number(rain.remaining) || 0);
+    const cells = [];
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (shape === 'round' && dx*dx + dy*dy > radius*radius) continue;
+      const x = rain.x + dx, y = rain.y + dy;
+      if (inBounds(world, x, y)) cells.push({ x, y });
+    }
+    ctx.save();
+    ctx.fillStyle = 'rgba(120,190,255,0.16)';
+    for (const c of cells) ctx.fillRect(c.x * size, c.y * size, size, size);
+    ctx.strokeStyle = 'rgba(160,220,255,0.75)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect((rain.x - radius) * size + 0.5, (rain.y - radius) * size + 0.5, (radius * 2 + 1) * size - 1, (radius * 2 + 1) * size - 1);
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(190,235,255,0.55)';
+    for (const c of cells) {
+      const seed = (c.x * 17 + c.y * 31 + (rain.id || 0) * 13);
+      const phase = (time * 10 + (seed % 10)) % 8;
+      const px = c.x * size + 3 + (seed % Math.max(1, size - 6));
+      const py = c.y * size + ((phase / 8) * size);
+      ctx.beginPath(); ctx.moveTo(px + 0.5, py + 0.5); ctx.lineTo(px + 0.5, py + 3.5); ctx.stroke();
+    }
+    ctx.restore();
+
+    const label = `${rem.toFixed(1)}s`;
+    ctx.save();
+    ctx.font = '9px monospace';
+    ctx.textBaseline = 'top';
+    const tw = Math.ceil(ctx.measureText(label).width);
+    const lx = rain.x * size + 2;
+    const ly = Math.max(0, (rain.y - radius) * size - 12);
+    ctx.fillStyle = 'rgba(20,40,55,0.8)';
+    ctx.fillRect(lx - 2, ly - 1, tw + 4, 11);
+    ctx.strokeStyle = 'rgba(140,210,255,0.9)';
+    ctx.strokeRect(lx - 2.5, ly - 1.5, tw + 5, 12);
+    ctx.fillStyle = '#dff5ff';
+    ctx.fillText(label, lx, ly);
+    ctx.restore();
+  }
+}
 
 function drawBrushPreview(ctx, world, x, y, brush, settings) {
   if (!inBounds(world,x,y)) return;
