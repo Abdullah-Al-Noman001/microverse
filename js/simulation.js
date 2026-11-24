@@ -105,7 +105,7 @@ export function stepSimulation(sim, dt) {
   updateRains(sim, dt);
 
   sim._regrowBatch = 0;
-  updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; });
+  updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; }, sim.rains);
   if (sim._regrowBatch > 0) {
     sim._regrowFlush += sim._regrowBatch;
   }

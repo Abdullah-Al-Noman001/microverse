@@ -299,12 +299,28 @@ export function depleteGrass(world, x, y) {
   return true;
 }
 
-export function updateGrassRegrowth(world, dt, onRegrow = null) {
+export function isTileInRain(x, y, rains) {
+  if (!Array.isArray(rains) || rains.length === 0) return false;
+  for (const rain of rains) {
+    const remaining = Number(rain?.remaining) || 0;
+    if (remaining <= 0) continue;
+    const radius = Math.max(0, Math.round(Number(rain.radius) || 0));
+    const dx = x - (Number(rain.x) || 0);
+    const dy = y - (Number(rain.y) || 0);
+    if (rain.shape === 'round') { if (dx * dx + dy * dy > radius * radius) continue; }
+    else if (Math.abs(dx) > radius || Math.abs(dy) > radius) continue;
+    return true;
+  }
+  return false;
+}
+
+export function updateGrassRegrowth(world, dt, onRegrow = null, rains = null) {
   let regrown = 0;
   for (let y = 0; y < world.height; y++) {
     for (let x = 0; x < world.width; x++) {
       if (world.tiles[y][x] !== TILE_TYPES.DIRT) continue;
-      world.regrowTimers[y][x] -= dt;
+      const boost = isTileInRain(x, y, rains) ? 3 : 1;
+      world.regrowTimers[y][x] -= dt * boost;
       if (world.regrowTimers[y][x] <= 0) {
         world.tiles[y][x] = TILE_TYPES.GRASS;
         world.regrowTimers[y][x] = 0;

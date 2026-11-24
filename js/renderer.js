@@ -176,6 +176,27 @@ function drawRains(ctx, world, rains, time) {
       ctx.beginPath(); ctx.moveTo(px + 0.5, py + 0.5); ctx.lineTo(px + 0.5, py + 3.5); ctx.stroke();
     }
     ctx.restore();
+
+    const secs = Math.max(0, Math.ceil(Number(rain.remaining) || 0));
+    const label = `${secs}s`;
+    const lx = (rain.x + 0.5) * size;
+    const ly = (rain.y + 0.5) * size - 0.5;
+    ctx.save();
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const w = Math.ceil(ctx.measureText(label).width) + 6;
+    const h = 12;
+    ctx.fillStyle = 'rgba(20,45,70,0.72)';
+    ctx.fillRect(Math.round(lx - w / 2), Math.round(ly - h / 2), w, h);
+    ctx.strokeStyle = 'rgba(190,235,255,0.85)';
+    ctx.strokeRect(Math.round(lx - w / 2) + 0.5, Math.round(ly - h / 2) + 0.5, w - 1, h - 1);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(15,30,45,0.85)';
+    ctx.strokeText(label, lx, ly);
+    ctx.fillStyle = 'rgba(245,252,255,0.98)';
+    ctx.fillText(label, lx, ly);
+    ctx.restore();
   }
 }
 
