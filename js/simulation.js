@@ -568,7 +568,7 @@ export function addRain(sim, x, y) {
     remaining: RAIN_CONFIG.duration
   };
   sim.rains.push(rain);
-  addEvent(sim, 'world', `Rain cloud formed at (${rain.x}, ${rain.y}) for ${rain.duration}s.`);
+  addEvent(sim, 'world', `Rain fell over ${rain.x},${rain.y} for ${rain.duration}s, speeding grass regrowth.`);
   return rain;
 }
 

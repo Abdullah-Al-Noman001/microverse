@@ -161,19 +161,34 @@ function drawRains(ctx, world, rains, time) {
     ctx.save();
     ctx.fillStyle = 'rgba(120,190,255,0.16)';
     for (const c of cells) ctx.fillRect(c.x * size, c.y * size, size, size);
-    ctx.strokeStyle = 'rgba(160,220,255,0.75)';
+    ctx.strokeStyle = 'rgba(170,225,255,0.6)';
     ctx.lineWidth = 1;
-    ctx.strokeRect((rain.x - radius) * size + 0.5, (rain.y - radius) * size + 0.5, (radius * 2 + 1) * size - 1, (radius * 2 + 1) * size - 1);
+    ctx.beginPath();
+    const cellKeys = new Set(cells.map(c => `${c.x},${c.y}`));
+    for (const c of cells) {
+      if (!cellKeys.has(`${c.x},${c.y - 1}`)) { ctx.moveTo(c.x * size + 0.5, c.y * size + 0.5); ctx.lineTo((c.x + 1) * size - 0.5, c.y * size + 0.5); }
+      if (!cellKeys.has(`${c.x + 1},${c.y}`)) { ctx.moveTo((c.x + 1) * size - 0.5, c.y * size + 0.5); ctx.lineTo((c.x + 1) * size - 0.5, (c.y + 1) * size - 0.5); }
+      if (!cellKeys.has(`${c.x},${c.y + 1}`)) { ctx.moveTo((c.x + 1) * size - 0.5, (c.y + 1) * size - 0.5); ctx.lineTo(c.x * size + 0.5, (c.y + 1) * size - 0.5); }
+      if (!cellKeys.has(`${c.x - 1},${c.y}`)) { ctx.moveTo(c.x * size + 0.5, (c.y + 1) * size - 0.5); ctx.lineTo(c.x * size + 0.5, c.y * size + 0.5); }
+    }
+    ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(190,235,255,0.55)';
     for (const c of cells) {
-      const seed = (c.x * 17 + c.y * 31 + (rain.id || 0) * 13);
-      const phase = (time * 10 + (seed % 10)) % 8;
-      const px = c.x * size + 3 + (seed % Math.max(1, size - 6));
-      const py = c.y * size + ((phase / 8) * size);
-      ctx.beginPath(); ctx.moveTo(px + 0.5, py + 0.5); ctx.lineTo(px + 0.5, py + 3.5); ctx.stroke();
+      const seed = hash(c.x + (rain.id || 0) * 7, c.y + (rain.id || 0) * 13);
+      for (let i = 0; i < 2; i++) {
+        const phase = (time * (7 + (seed % 4)) + (seed % 11) + i * 4.7) % 12;
+        const px = c.x * size + 2 + ((seed + i * 5) % Math.max(1, size - 4));
+        const py = c.y * size + (phase / 12) * (size - 2);
+        const alpha = 0.25 + ((seed + i) % 5) * 0.08;
+        ctx.fillStyle = `rgba(200,235,255,${alpha.toFixed(2)})`;
+        ctx.fillRect(Math.round(px), Math.round(py), 1, 2);
+        if ((seed + i) % 3 === 0) {
+          ctx.fillStyle = 'rgba(235,250,255,0.35)';
+          ctx.fillRect(Math.round(px), Math.round(py), 1, 1);
+        }
+      }
     }
     ctx.restore();
 

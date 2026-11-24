@@ -64,10 +64,11 @@ Status: **items 2-11, 44 complete (items 7-9 user/browser-verified 2026-11-22/20
 - **Item 9 browser-verified and marked complete:** Nature Powers section visible, Rain selects with 3x3 round preview, click targets without terrain edits/painting drag, terrain/creature tools and brush size/shape controls unaffected, pause/edit behavior unchanged, no major small-screen overflow observed.
 - **Item 10 implemented and smoke-verified:** `addRain` creates temporary 3x3 round rain clouds (12s) in `js/simulation.js`; rains tick down/expire with event-log entries; `js/main.js` places rain on target click and passes rains to renderer; `js/renderer.js` draws active rain area, streaks, and remaining-time label; saves normalize/migrate rain data (v2-compatible). Playwright smoke: place 2 rains paused, form events, play/4x expiry clears both, save/load with active rain, terrain regression - passed, no console/page errors. Timer label readability improved with outlined badge.
 - **Item 11 implemented and logic-verified:** `updateGrassRegrowth` in `js/world.js` accepts rains and applies 3x regrowth to dirt tiles inside active rain; `js/simulation.js` passes `sim.rains`. Node check: 5 rain-area dirt tiles regrew in 8s vs 0 dry-area tiles.
+- **Item 12 implemented, not browser-verified:** `js/renderer.js` now draws clearer rain feedback (cell-based particle drops, affected-area outline/fill, readable timer badge); `js/simulation.js` rain event log now states rain speeds grass regrowth. Browser verification still needed for readability/feel at normal zoom and on small screens.
 
-**Not fully browser-verified:** rain timer/overlay clarity at normal zoom, overlapping rain feel, save/load with active rains in real UI, small-screen/touch behavior, visual confirmation of faster regrowth.
+**Not fully browser-verified:** rain timer/overlay clarity at normal zoom, particle/overlay feel, overlapping rains, save/load with active rains in real UI, small-screen/touch behavior, visual confirmation of faster regrowth.
 
-Next agent should: quick browser-check item 10/11 visuals, then build **item 12** (simple rain particles, short event-log entry, readable affected-tile indicator) without bundling later powers. Keep item 45 in scope.
+Next agent should: quick browser-check item 10-12 visuals/feel, then build **item 13 (Bloom)** as a small next nature power. Keep item 45 in scope.
 
 Relevant files: `js/world.js`, `js/simulation.js`, `js/renderer.js`, `js/main.js`, `projectPLAN.md`.
 ### Instructions for future agents
@@ -105,7 +106,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **9. Power-tool section.** Nature Powers category with Rain target tool, 3x3 round power preview, target click without terrain edits/painting drag; terrain/creature tools and brush controls unchanged. Browser-verified 2026-11-24.
 - [x] **10. Rain, first version.** Places temporary 3x3 round rain cloud (12s), shows active area and remaining duration, logs form/clear events. Smoke-verified 2026-11-24; browser polish still recommended.
 - [x] **11. Rain affects the world.** Rain speeds grass recovery 3x in its affected area (one visible, measurable effect via `updateGrassRegrowth` rain boost). Logic-verified 2026-11-24.
-- [ ] **12. Rain feedback.** Add simple rain particles, a short event-log entry, and a readable indicator for affected tiles.
+- [x] **12. Rain feedback.** Added clearer rain particles, affected-area outline/fill, and rain event-log text noting faster grass regrowth. Implemented 2026-11-25; browser verification still recommended.
 - [ ] **13. Bloom.** Add a temporary flowering/food-rich patch that attracts rabbits and supports pollinators later.
 - [ ] **14. Sanctuary.** Let the player mark a small habitat where predators avoid hunting. Make the tradeoff visible: prey gets refuge, predators must range farther.
 - [ ] **15. One disruptive force.** Add a contained wildfire or drought as a counterpoint to nurturing powers. Make spread, damage, and recovery visible and tuneable.
@@ -170,8 +171,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Quick browser-check item 10/11 visuals (timer badge clarity, rain overlay, faster regrowth visible on dirt).
-2. Build **item 12**: simple rain particles, short event-log entry, readable affected-tile indicator (small, visible feedback only).
+1. Quick browser-check item 10-12 visuals (timer badge clarity, rain particles/overlay, affected-tile indicator, faster regrowth visible on dirt).
+2. Build **item 13 (Bloom)**: temporary flowering/food-rich patch that attracts rabbits; keep scope small and save-compatible.
 3. Address item 45 (any-screen support) early as UI/layout work evolves.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.
