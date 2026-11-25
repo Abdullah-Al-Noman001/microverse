@@ -10,10 +10,11 @@ export function setupCanvas(canvas, world) {
 }
 
 export function render(ctx, state) {
-  const { world, rabbits, wolves, rains, selected, selectedTile, hoverTile, brush, settings, time } = state;
+  const { world, rabbits, wolves, rains, blooms, selected, selectedTile, hoverTile, brush, settings, time } = state;
   renderWorld(ctx, world, time, settings);
   if (settings?.showGrid) drawGrid(ctx, world);
   drawRains(ctx, world, rains, time);
+  drawBlooms(ctx, world, blooms, time);
   if (selectedTile) drawTileHighlight(ctx, selectedTile.x, selectedTile.y, world.tileSize, '#ffe08a', 2);
   if (hoverTile && brush && brush.tool) drawBrushPreview(ctx, world, hoverTile.x, hoverTile.y, brush, settings);
   renderEntities(ctx, world, rabbits, wolves, selected, time, settings);
@@ -144,7 +145,79 @@ function drawTileHighlight(ctx, x, y, size, color, lw=2) {
   ctx.strokeStyle = color; ctx.lineWidth = lw;
   ctx.strokeRect(x*size+1, y*size+1, size-2, size-2);
 }
-const PREVIEW_POWER_TOOLS = { rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' } };
+const PREVIEW_POWER_TOOLS = {
+  rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' },
+  bloom: { size: 3, shape: 'round', color: 'rgba(255,170,210,0.82)' }
+};
+
+function drawBlooms(ctx, world, blooms, time) {
+  if (!Array.isArray(blooms) || blooms.length === 0) return;
+  const size = world.tileSize;
+  for (const bloom of blooms) {
+    const radius = Math.max(0, Math.round(Number(bloom.radius) || 1));
+    const shape = bloom.shape === 'round' ? 'round' : 'square';
+    const cells = [];
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+      const x = bloom.x + dx, y = bloom.y + dy;
+      if (inBounds(world, x, y)) cells.push({ x, y });
+    }
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,170,210,0.18)';
+    for (const c of cells) ctx.fillRect(c.x * size, c.y * size, size, size);
+    ctx.strokeStyle = 'rgba(255,205,225,0.72)';
+    ctx.lineWidth = 1;
+    const cellKeys = new Set(cells.map(c => `${c.x},${c.y}`));
+    ctx.beginPath();
+    for (const c of cells) {
+      if (!cellKeys.has(`${c.x},${c.y - 1}`)) { ctx.moveTo(c.x * size + 1.5, c.y * size + 1.5); ctx.lineTo((c.x + 1) * size - 1.5, c.y * size + 1.5); }
+      if (!cellKeys.has(`${c.x + 1},${c.y}`)) { ctx.moveTo((c.x + 1) * size - 1.5, c.y * size + 1.5); ctx.lineTo((c.x + 1) * size - 1.5, (c.y + 1) * size - 1.5); }
+      if (!cellKeys.has(`${c.x},${c.y + 1}`)) { ctx.moveTo((c.x + 1) * size - 1.5, (c.y + 1) * size - 1.5); ctx.lineTo(c.x * size + 1.5, (c.y + 1) * size - 1.5); }
+      if (!cellKeys.has(`${c.x - 1},${c.y}`)) { ctx.moveTo(c.x * size + 1.5, (c.y + 1) * size - 1.5); ctx.lineTo(c.x * size + 1.5, c.y * size + 1.5); }
+    }
+    ctx.stroke();
+
+    for (const c of cells) {
+      const seed = hash(c.x + (bloom.id || 0) * 11, c.y + (bloom.id || 0) * 17);
+      for (let i = 0; i < 3; i++) {
+        const px = c.x * size + 3 + ((seed + i * 5) % 10);
+        const py = c.y * size + 3 + ((seed + i * 7) % 10);
+        const pulse = settingsLikePulse(time, seed + i);
+        ctx.fillStyle = i % 2 ? '#ffd9a8' : '#f4a6ca';
+        ctx.fillRect(Math.round(px - pulse), Math.round(py), 2, 2);
+        ctx.fillStyle = '#fff1a6';
+        ctx.fillRect(Math.round(px), Math.round(py - pulse), 1, 1);
+      }
+    }
+    ctx.restore();
+
+    const secs = Math.max(0, Math.ceil(Number(bloom.remaining) || 0));
+    const label = `${secs}s`;
+    const lx = (bloom.x + 0.5) * size;
+    const ly = (bloom.y + 0.5) * size - 0.5;
+    ctx.save();
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const w = Math.ceil(ctx.measureText(label).width) + 6;
+    const h = 12;
+    ctx.fillStyle = 'rgba(92,45,72,0.78)';
+    ctx.fillRect(Math.round(lx - w / 2), Math.round(ly - h / 2), w, h);
+    ctx.strokeStyle = 'rgba(255,215,235,0.9)';
+    ctx.strokeRect(Math.round(lx - w / 2) + 0.5, Math.round(ly - h / 2) + 0.5, w - 1, h - 1);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(60,28,48,0.85)';
+    ctx.strokeText(label, lx, ly);
+    ctx.fillStyle = 'rgba(255,249,252,0.98)';
+    ctx.fillText(label, lx, ly);
+    ctx.restore();
+  }
+}
+
+function settingsLikePulse(time, seed) {
+  return Math.sin(time * 3 + seed * 0.2) > 0.7 ? 1 : 0;
+}
 
 function drawRains(ctx, world, rains, time) {
   if (!Array.isArray(rains) || rains.length === 0) return;

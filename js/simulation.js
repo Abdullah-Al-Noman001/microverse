@@ -5,6 +5,7 @@ const MAX_EVENTS = 120;
 const MAX_HISTORY = 240;
 const HISTORY_INTERVAL = 1.0;
 export const RAIN_CONFIG = { duration: 12, brushSize: 3, shape: 'round' };
+export const BLOOM_CONFIG = { duration: 18, brushSize: 3, shape: 'round' };
 
 export function createSimulation(world, options = {}) {
   const rabbits = options.initialRabbits ?? spawnInitialRabbits(world);
@@ -14,6 +15,7 @@ export function createSimulation(world, options = {}) {
     rabbits,
     wolves,
     rains: Array.isArray(options.rains) ? options.rains : [],
+    blooms: Array.isArray(options.blooms) ? options.blooms : [],
     stats: {
       rabbitBirths: 0, rabbitDeaths: 0,
       wolfBirths: 0, wolfDeaths: 0,
@@ -26,7 +28,8 @@ export function createSimulation(world, options = {}) {
     _eventSeq: 1,
     _regrowBatch: 0,
     _regrowFlush: 0,
-    _rainSeq: 1
+    _rainSeq: 1,
+    _bloomSeq: 1
   };
   if (!options.skipWelcome) addEvent(sim, 'world', buildWorldIntro(sim));
   recordHistory(sim, true);
@@ -37,6 +40,7 @@ export function resetSimulation(sim) {
   sim.rabbits.length = 0;
   sim.wolves.length = 0;
   sim.rains.length = 0;
+  sim.blooms.length = 0;
   sim.stats.rabbitBirths = 0; sim.stats.rabbitDeaths = 0;
   sim.stats.wolfBirths = 0; sim.stats.wolfDeaths = 0;
   sim.stats.successfulHunts = 0;
@@ -45,6 +49,7 @@ export function resetSimulation(sim) {
   sim.history.length = 0; sim._historyTimer = 0;
   sim._regrowBatch = 0; sim._regrowFlush = 0;
   sim._rainSeq = 1;
+  sim._bloomSeq = 1;
   const rabbits = spawnInitialRabbits(sim.world);
   const wolves = spawnInitialWolves(sim.world, rabbits);
   sim.rabbits.push(...rabbits);
@@ -103,6 +108,7 @@ function spawnInitialWolves(world, rabbits) {
 export function stepSimulation(sim, dt) {
   sim.time += dt;
   updateRains(sim, dt);
+  updateBlooms(sim, dt);
 
   sim._regrowBatch = 0;
   updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; }, sim.rains);
@@ -209,7 +215,7 @@ function updateRabbit(rabbit, sim, dt) {
 
   const hungry = rabbit.hunger >= RABBIT_CONFIG.hungerThreshold || rabbit.energy < 55;
   if (hungry) {
-    const food = findNearestFood(world, rabbit.tileX, rabbit.tileY, RABBIT_CONFIG.foodSearchRadius);
+    const food = findNearestFood(world, sim.blooms, rabbit.tileX, rabbit.tileY, RABBIT_CONFIG.foodSearchRadius);
     if (food) {
       if (food.x === rabbit.tileX && food.y === rabbit.tileY) { startRabbitEating(rabbit); return; }
       rabbit.state = 'searching';
@@ -335,7 +341,15 @@ function startRabbitEating(rabbit) {
 }
 
 function finishEating(rabbit, sim) {
-  const ate = depleteGrass(sim.world, rabbit.tileX, rabbit.tileY);
+  const inBloom = isTileInBloom(rabbit.tileX, rabbit.tileY, sim.blooms);
+  let ate = false;
+  if (inBloom) {
+    rabbit.energy = clamp(rabbit.energy + 45, 0, RABBIT_CONFIG.maxEnergy);
+    rabbit.hunger = clamp(rabbit.hunger - 55, 0, RABBIT_CONFIG.maxHunger);
+    ate = true;
+  } else {
+    ate = depleteGrass(sim.world, rabbit.tileX, rabbit.tileY);
+  }
   if (ate) {
     rabbit.energy = clamp(rabbit.energy + RABBIT_CONFIG.energyRestoreEat, 0, RABBIT_CONFIG.maxEnergy);
     rabbit.hunger = clamp(rabbit.hunger - RABBIT_CONFIG.hungerReduceEat, 0, RABBIT_CONFIG.maxHunger);
@@ -424,10 +438,33 @@ function anyValidStep(entity, world, sameSpecies, otherSpecies) {
   return options.length ? options[0] : null;
 }
 
-function findNearestFood(world, x, y, radius) {
+function isTileInBloom(x, y, blooms) {
+  if (!Array.isArray(blooms) || blooms.length === 0) return false;
+  for (const bloom of blooms) {
+    if ((Number(bloom?.remaining) || 0) <= 0) continue;
+    const radius = Math.max(0, Math.round(Number(bloom.radius) || 0));
+    const dx = x - (Number(bloom.x) || 0);
+    const dy = y - (Number(bloom.y) || 0);
+    if (bloom.shape === 'round') { if (dx * dx + dy * dy > radius * radius) continue; }
+    else if (Math.abs(dx) > radius || Math.abs(dy) > radius) continue;
+    return true;
+  }
+  return false;
+}
+
+function findNearestFood(world, blooms, x, y, radius) {
   let best = null, bestDist = Infinity;
   const minX = Math.max(0, x - radius), maxX = Math.min(world.width - 1, x + radius);
   const minY = Math.max(0, y - radius), maxY = Math.min(world.height - 1, y + radius);
+  for (let ty = minY; ty <= maxY; ty++) {
+    for (let tx = minX; tx <= maxX; tx++) {
+      if (!isTileInBloom(tx, ty, blooms)) continue;
+      if (!isWalkable(world, tx, ty)) continue;
+      const d = manhattan(x, y, tx, ty);
+      if (d < bestDist) { bestDist = d; best = { x: tx, y: ty }; }
+    }
+  }
+  if (best) return best;
   for (let ty = minY; ty <= maxY; ty++) {
     for (let tx = minX; tx <= maxX; tx++) {
       if (world.tiles[ty][tx] !== TILE_TYPES.GRASS) continue;
@@ -572,6 +609,22 @@ export function addRain(sim, x, y) {
   return rain;
 }
 
+export function addBloom(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return null;
+  const bloom = {
+    id: sim._bloomSeq++,
+    x: clampInt(x, 0, sim.world.width - 1),
+    y: clampInt(y, 0, sim.world.height - 1),
+    radius: Math.floor(BLOOM_CONFIG.brushSize / 2),
+    shape: BLOOM_CONFIG.shape,
+    duration: BLOOM_CONFIG.duration,
+    remaining: BLOOM_CONFIG.duration
+  };
+  sim.blooms.push(bloom);
+  addEvent(sim, 'world', `Flowers bloomed over ${bloom.x},${bloom.y} for ${bloom.duration}s, attracting rabbits.`);
+  return bloom;
+}
+
 function updateRains(sim, dt) {
   if (!Array.isArray(sim.rains) || sim.rains.length === 0) return;
   for (let i = sim.rains.length - 1; i >= 0; i--) {
@@ -580,6 +633,18 @@ function updateRains(sim, dt) {
     if (rain.remaining <= 0) {
       sim.rains.splice(i, 1);
       addEvent(sim, 'world', `Rain cloud at (${rain.x}, ${rain.y}) cleared.`);
+    }
+  }
+}
+
+function updateBlooms(sim, dt) {
+  if (!Array.isArray(sim.blooms) || sim.blooms.length === 0) return;
+  for (let i = sim.blooms.length - 1; i >= 0; i--) {
+    const bloom = sim.blooms[i];
+    bloom.remaining = Math.max(0, (Number(bloom.remaining) || 0) - dt);
+    if (bloom.remaining <= 0) {
+      sim.blooms.splice(i, 1);
+      addEvent(sim, 'world', `Bloom patch at (${bloom.x}, ${bloom.y}) faded.`);
     }
   }
 }
@@ -642,6 +707,7 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
     },
     stats: { ...sim.stats },
     rains: (sim.rains || []).map(r => ({ id: r.id, x: r.x, y: r.y, radius: r.radius, shape: r.shape, duration: r.duration, remaining: r.remaining })),
+    blooms: (sim.blooms || []).map(b => ({ id: b.id, x: b.x, y: b.y, radius: b.radius, shape: b.shape, duration: b.duration, remaining: b.remaining })),
     rabbits: sim.rabbits.map(serializeEntity),
     wolves: sim.wolves.map(serializeEntity),
     events: sim.events.slice(-60),
@@ -649,7 +715,8 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
     idCounters: {
       rabbit: sim.rabbits.reduce((m,e)=>Math.max(m,e.id),0),
       wolf: sim.wolves.reduce((m,e)=>Math.max(m,e.id),0),
-      rain: (sim.rains || []).reduce((m,e)=>Math.max(m,e.id||0),0)
+      rain: (sim.rains || []).reduce((m,e)=>Math.max(m,e.id||0),0),
+      bloom: (sim.blooms || []).reduce((m,e)=>Math.max(m,e.id||0),0)
     }
   };
 }
@@ -670,11 +737,12 @@ export function hydrateSimulation(data) {
     world,
     rabbits: [], wolves: [],
     rains: Array.isArray(migrated.rains) ? migrated.rains.map(r => sanitizeRain(r, world)).filter(Boolean) : [],
+    blooms: Array.isArray(migrated.blooms) ? migrated.blooms.map(b => sanitizeBloom(b, world)).filter(Boolean) : [],
     stats: normalizeStats(migrated.stats),
     time: Math.max(0, Number(migrated.time) || 0),
     events: Array.isArray(migrated.events) ? migrated.events.slice(-MAX_EVENTS).map(sanitizeEvent).filter(Boolean) : [],
     history: Array.isArray(migrated.history) ? migrated.history.slice(-MAX_HISTORY).map(sanitizeHistory).filter(Boolean) : [],
-    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1
+    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1, _bloomSeq: 1
   };
   setIdCounters(migrated.idCounters?.rabbit || 0, migrated.idCounters?.wolf || 0);
   for (const r of (migrated.rabbits || [])) {
@@ -701,6 +769,7 @@ export function hydrateSimulation(data) {
     sim.wolves.reduce((m, e) => Math.max(m, e.id), migrated.idCounters?.wolf || 0)
   );
   sim._rainSeq = sim.rains.reduce((m, r) => Math.max(m, r.id || 0), migrated.idCounters?.rain || 0) + 1;
+  sim._bloomSeq = sim.blooms.reduce((m, b) => Math.max(m, b.id || 0), migrated.idCounters?.bloom || 0) + 1;
   sim._eventSeq = sim.events.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
   if (!sim.history.length) recordHistory(sim, true);
   return sim;
@@ -750,6 +819,7 @@ function normalizeSaveV2(data) {
     },
     stats: normalizeStats(data.stats),
     rains: Array.isArray(data.rains) ? data.rains : [],
+    blooms: Array.isArray(data.blooms) ? data.blooms : [],
     rabbits: Array.isArray(data.rabbits) ? data.rabbits : [],
     wolves: Array.isArray(data.wolves) ? data.wolves : [],
     events: Array.isArray(data.events) ? data.events : [],
@@ -807,6 +877,22 @@ function sanitizeRain(r, world) {
     y: clampInt(r.y, 0, world.height - 1),
     radius: clampInt(r.radius ?? Math.floor(RAIN_CONFIG.brushSize / 2), 0, 8),
     shape: r.shape === 'round' ? 'round' : 'square',
+    duration,
+    remaining
+  };
+}
+
+function sanitizeBloom(b, world) {
+  if (!b || typeof b !== 'object') return null;
+  const duration = clamp(Number(b.duration) || BLOOM_CONFIG.duration, 1, 120);
+  const remaining = clamp(Number(b.remaining), 0, duration);
+  if (remaining <= 0) return null;
+  return {
+    id: Math.max(0, Math.round(Number(b.id) || 0)),
+    x: clampInt(b.x, 0, world.width - 1),
+    y: clampInt(b.y, 0, world.height - 1),
+    radius: clampInt(b.radius ?? Math.floor(BLOOM_CONFIG.brushSize / 2), 0, 8),
+    shape: b.shape === 'round' ? 'round' : 'square',
     duration,
     remaining
   };

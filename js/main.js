@@ -1,5 +1,5 @@
 import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES, getWorldRules } from './world.js';
-import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addRain, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
+import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addRain, addBloom, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
 import { loadPrefs, savePrefs, saveSlot, loadSlot, listSlots, deleteSlot } from './storage.js';
@@ -80,7 +80,10 @@ let lastTime = 0;
 let selected = null; // creature
 let selectedTile = null;
 let hoverTile = null;
-const POWER_TOOLS = { rain: { label: 'Rain', brushSize: 3, brushShape: 'round', color: 'rgba(120,190,255,0.82)' } };
+const POWER_TOOLS = {
+  rain: { label: 'Rain', brushSize: 3, brushShape: 'round', color: 'rgba(120,190,255,0.82)' },
+  bloom: { label: 'Bloom', brushSize: 3, brushShape: 'round', color: 'rgba(255,170,210,0.82)' }
+};
 function isPowerTool(tool) { return !!POWER_TOOLS[tool]; }
 function isTerrainTool(tool) { return ['grass','dirt','tree','bush','rock','water','erase'].includes(tool); }
 let brush = { tool: 'select', size: 1, shape: 'square', category: 'terrain' }; // terrain brushes use 1, 3, or 5 tile footprints
@@ -310,7 +313,7 @@ function setBrush(tool) {
   brush.tool = tool;
   brush.category = isPowerTool(tool) ? 'power' : isTerrainTool(tool) ? 'terrain' : 'utility';
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
-  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf',rain:'Rain Power'})[tool] || tool;
+  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf',rain:'Rain Power',bloom:'Bloom Power'})[tool] || tool;
   if (isPowerTool(tool)) {
     const p = POWER_TOOLS[tool];
     brushInfo.textContent = `${label} · ${p.brushSize}×${p.brushSize} ${p.brushShape}`;
@@ -403,6 +406,11 @@ function applyToolAt(tile, isDrag=false) {
       const rain = addRain(sim, tile.x, tile.y);
       if (rain) { showToast(`Rain cloud placed (${rain.duration}s).`); sfx('place'); }
       else showToast('Could not place rain there.');
+    }
+    if (brush.tool === 'bloom') {
+      const bloom = addBloom(sim, tile.x, tile.y);
+      if (bloom) { showToast(`Bloom patch placed (${bloom.duration}s).`); sfx('place'); }
+      else showToast('Could not place bloom there.');
     }
     lastPaintKey = key; refreshAll();
     return;
@@ -712,7 +720,7 @@ function loop(ts) {
   }
 
   const nowSec = ts / 1000;
-  render(ctx, { world: sim.world, rabbits: sim.rabbits, wolves: sim.wolves, rains: sim.rains, selected, selectedTile, hoverTile, brush, settings: prefs, time: nowSec });
+  render(ctx, { world: sim.world, rabbits: sim.rabbits, wolves: sim.wolves, rains: sim.rains, blooms: sim.blooms, selected, selectedTile, hoverTile, brush, settings: prefs, time: nowSec });
   uiAccum += frame;
   if (uiAccum > 0.12) {
     uiAccum = 0;
