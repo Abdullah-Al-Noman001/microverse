@@ -151,7 +151,9 @@ const PREVIEW_POWER_TOOLS = {
   rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' },
   bloom: { size: 3, shape: 'round', color: 'rgba(255,170,210,0.82)' },
   sanctuary: { size: 3, shape: 'round', color: 'rgba(170,230,160,0.82)' },
-  wildfire: { size: 3, shape: 'round', color: 'rgba(255,140,70,0.85)' }
+  wildfire: { size: 3, shape: 'round', color: 'rgba(255,140,70,0.85)' },
+  calm: { size: 3, shape: 'round', color: 'rgba(180,210,255,0.82)' },
+  recover: { size: 3, shape: 'round', color: 'rgba(140,255,170,0.82)' }
 };
 
 function drawBlooms(ctx, world, blooms, time) {

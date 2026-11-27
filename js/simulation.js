@@ -8,6 +8,7 @@ export const RAIN_CONFIG = { duration: 12, brushSize: 3, shape: 'round' };
 export const BLOOM_CONFIG = { duration: 18, brushSize: 3, shape: 'round' };
 export const SANCTUARY_CONFIG = { duration: 24, brushSize: 3, shape: 'round' };
 export const WILDFIRE_CONFIG = { duration: 8, brushSize: 3, shape: 'round', damagePerSec: 22, spreadDelay: 0.35 };
+export const RECOVERY_CONFIG = { brushSize: 3, shape: 'round', regrowBoost: 1.5 };
 
 export function createSimulation(world, options = {}) {
   const rabbits = options.initialRabbits ?? spawnInitialRabbits(world);
@@ -723,6 +724,71 @@ export function addWildfire(sim, x, y) {
   sim.wildfires.push(wildfire);
   addEvent(sim, 'world', `Wildfire sparked at ${wildfire.x},${wildfire.y} for ${wildfire.duration}s; grass and creatures are at risk.`);
   return wildfire;
+}
+
+function powerAreaCells(world, x, y, radius, shape) {
+  const cells = [];
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+    const tx = x + dx, ty = y + dy;
+    if (inBounds(world, tx, ty)) cells.push(`${tx},${ty}`);
+  }
+  return new Set(cells);
+}
+
+function effectOverlapsCells(effect, cellSet) {
+  const radius = Math.max(0, Math.round(Number(effect.radius) || 0));
+  const shape = effect.shape === 'round' ? 'round' : 'square';
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+    if (cellSet.has(`${effect.x + dx},${effect.y + dy}`)) return true;
+  }
+  return false;
+}
+
+export function cancelPowersAt(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return { cancelled: 0 };
+  const cellSet = powerAreaCells(sim.world, x, y, Math.floor(RECOVERY_CONFIG.brushSize / 2), RECOVERY_CONFIG.shape);
+  let cancelled = 0;
+  const filter = (arr, name, at) => {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (effectOverlapsCells(arr[i], cellSet)) { const e = arr.splice(i, 1)[0]; cancelled++; addEvent(sim, 'world', `${name} at (${e.x}, ${e.y}) was calmed.`); }
+    }
+  };
+  filter(sim.rains, 'Rain cloud', 'rains');
+  filter(sim.blooms, 'Bloom patch', 'blooms');
+  filter(sim.sanctuaries, 'Sanctuary', 'sanctuaries');
+  filter(sim.wildfires, 'Wildfire', 'wildfires');
+  return { cancelled };
+}
+
+export function recoverHabitatAt(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return { recovered: 0 };
+  const radius = Math.floor(RECOVERY_CONFIG.brushSize / 2);
+  const shape = RECOVERY_CONFIG.shape;
+  let recovered = 0;
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+    const tx = x + dx, ty = y + dy;
+    if (!inBounds(sim.world, tx, ty)) continue;
+    if (sim.world.tiles[ty][tx] === TILE_TYPES.DIRT) {
+      sim.world.tiles[ty][tx] = TILE_TYPES.GRASS;
+      sim.world.regrowTimers[ty][tx] = 0;
+      recovered++;
+    }
+  }
+  for (let i = sim.wildfires.length - 1; i >= 0; i--) {
+    const fire = sim.wildfires[i];
+    const ignited = fire.ignited instanceof Set ? fire.ignited : new Set(Array.isArray(fire.ignited) ? fire.ignited : []);
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+      ignited.delete(`${x + dx},${y + dy}`);
+    }
+    fire.ignited = ignited;
+    if (ignited.size === 0) { sim.wildfires.splice(i, 1); addEvent(sim, 'world', `Wildfire at (${fire.x}, ${fire.y}) was extinguished by recovery.`); }
+  }
+  if (recovered > 0) addEvent(sim, 'grass', `Recovery restored ${recovered} grass tile${recovered === 1 ? '' : 's'}.`);
+  return { recovered };
 }
 
 function updateWildfires(sim, dt) {

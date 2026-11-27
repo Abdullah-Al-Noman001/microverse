@@ -1,5 +1,5 @@
 import { createWorld, WORLD_PRESETS, getWorldStats, getTile, paintTile, eraseTile, canPaintTile, isWalkable, TILE_TYPES, getWorldRules } from './world.js';
-import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addRain, addBloom, addSanctuary, addWildfire, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
+import { createSimulation, resetSimulation, stepSimulation, addRabbit, addWolf, addRain, addBloom, addSanctuary, addWildfire, cancelPowersAt, recoverHabitatAt, addEvent, serializeSimulation, hydrateSimulation } from './simulation.js';
 import { setupCanvas, render } from './renderer.js';
 import { getEntityRenderPos, getRabbitStatus, getWolfStatus, resetRabbitIds, resetWolfIds } from './entities.js';
 import { loadPrefs, savePrefs, saveSlot, loadSlot, listSlots, deleteSlot } from './storage.js';
@@ -84,7 +84,9 @@ const POWER_TOOLS = {
   rain: { label: 'Rain', brushSize: 3, brushShape: 'round', color: 'rgba(120,190,255,0.82)' },
   bloom: { label: 'Bloom', brushSize: 3, brushShape: 'round', color: 'rgba(255,170,210,0.82)' },
   sanctuary: { label: 'Sanctuary', brushSize: 3, brushShape: 'round', color: 'rgba(170,230,160,0.82)' },
-  wildfire: { label: 'Wildfire', brushSize: 3, brushShape: 'round', color: 'rgba(255,140,70,0.85)' }
+  wildfire: { label: 'Wildfire', brushSize: 3, brushShape: 'round', color: 'rgba(255,140,70,0.85)' },
+  calm: { label: 'Calm', brushSize: 3, brushShape: 'round', color: 'rgba(180,210,255,0.82)' },
+  recover: { label: 'Recover', brushSize: 3, brushShape: 'round', color: 'rgba(140,255,170,0.82)' }
 };
 function isPowerTool(tool) { return !!POWER_TOOLS[tool]; }
 function isTerrainTool(tool) { return ['grass','dirt','tree','bush','rock','water','erase'].includes(tool); }
@@ -315,7 +317,7 @@ function setBrush(tool) {
   brush.tool = tool;
   brush.category = isPowerTool(tool) ? 'power' : isTerrainTool(tool) ? 'terrain' : 'utility';
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
-  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf',rain:'Rain Power',bloom:'Bloom Power',sanctuary:'Sanctuary Power',wildfire:'Wildfire Power'})[tool] || tool;
+  const label = ({select:'Select',grass:'Grass',dirt:'Dirt',tree:'Tree',bush:'Bush',rock:'Rock',water:'Water',erase:'Erase',rabbit:'Place Rabbit',wolf:'Place Wolf',rain:'Rain Power',bloom:'Bloom Power',sanctuary:'Sanctuary Power',wildfire:'Wildfire Power',calm:'Calm Powers',recover:'Recover Habitat'})[tool] || tool;
   if (isPowerTool(tool)) {
     const p = POWER_TOOLS[tool];
     brushInfo.textContent = `${label} · ${p.brushSize}×${p.brushSize} ${p.brushShape}`;
@@ -423,6 +425,16 @@ function applyToolAt(tile, isDrag=false) {
       const wildfire = addWildfire(sim, tile.x, tile.y);
       if (wildfire) { showToast(`Wildfire sparked (${wildfire.duration}s).`); sfx('hunt'); }
       else showToast('Could not place wildfire there.');
+    }
+    if (brush.tool === 'calm') {
+      const res = cancelPowersAt(sim, tile.x, tile.y);
+      showToast(res.cancelled ? `Calmed ${res.cancelled} active effect${res.cancelled===1?'':'s'}.` : 'No active powers in that area.');
+      if (res.cancelled) sfx('ui');
+    }
+    if (brush.tool === 'recover') {
+      const res = recoverHabitatAt(sim, tile.x, tile.y);
+      showToast(res.recovered ? `Recovered ${res.recovered} grass tile${res.recovered===1?'':'s'}.` : 'No damaged dirt in that area to recover.');
+      if (res.recovered) sfx('place');
     }
     lastPaintKey = key; refreshAll();
     return;
