@@ -69,10 +69,11 @@ Status: **items 2-11, 44 complete (items 7-9 user/browser-verified 2026-11-22/20
 - **Item 12 implemented, not browser-verified:** `js/renderer.js` now draws clearer rain feedback (cell-based particle drops, affected-area outline/fill, readable timer badge); `js/simulation.js` rain event log now states rain speeds grass regrowth. Browser verification still needed for readability/feel at normal zoom and on small screens.
 - **Item 13 implemented, logic/save-verified:** Bloom is a temporary 3x3 round flowering patch (18s) that rabbits seek ahead of ordinary grass, provides stronger feeding, shows a timer and fading flower particles, and is included in v2 save hydration/migration.
 - **Item 14 implemented, logic/save-verified:** Sanctuary is a temporary 3x3 round refuge (24s). Wolves ignore rabbits inside sanctuaries, drop targets/catches if they enter protected tiles, and search outside; renderer shows green refuge overlay/timer; saves serialize/hydrate sanctuaries in v2.
+- **Item 15 implemented, logic/save-verified:** Wildfire is a contained 3x3 round disruptive power (8s). It spreads within its footprint, burns grass/bush into dirt, damages creatures inside ignited cells, logs spark/burnout/perish events, expires, and is serialized/hydrated in v2 saves.
 
-**Not fully browser-verified:** rain/bloom/sanctuary timer/overlay clarity at normal zoom, overlapping powers, save/load with active powers in real UI, small-screen/touch behavior, and the visual/behavioral feel of wolves ranging around sanctuary.
+**Not fully browser-verified:** rain/bloom/sanctuary/wildfire timer/overlay clarity at normal zoom, overlapping powers, save/load with active powers in real UI, small-screen/touch behavior, wildfire damage feel/tuning, and wolves ranging around sanctuary.
 
-Next agent should: browser-check Rain/Bloom/Sanctuary visuals and feel, then build **item 15 (One disruptive force)**. Keep item 45 in scope.
+Next agent should: browser-check nature powers visuals/feel, then build **item 16 (Power undo or recovery tools)**. Keep item 45 in scope.
 
 Relevant files: `js/world.js`, `js/simulation.js`, `js/renderer.js`, `js/main.js`, `projectPLAN.md`.
 ### Instructions for future agents
@@ -113,7 +114,7 @@ Each numbered item is intended to be a small build step. Finish and play with on
 - [x] **12. Rain feedback.** Added clearer rain particles, affected-area outline/fill, and rain event-log text noting faster grass regrowth. Implemented 2026-11-25; browser verification still recommended.
 - [x] **13. Bloom.** Temporary 3x3 round flowering/food-rich patch attracts hungry rabbits, provides stronger feeding, and saves with active duration.
 - [x] **14. Sanctuary.** Temporary 3x3 round refuge marks a small habitat where wolves avoid hunting; prey gets refuge and predators must search farther/range outside it.
-- [ ] **15. One disruptive force.** Add a contained wildfire or drought as a counterpoint to nurturing powers. Make spread, damage, and recovery visible and tuneable.
+- [x] **15. One disruptive force.** Wildfire is a contained 3x3 round disruptive power (8s) that spreads within its footprint, burns grass/bush to dirt, harms creatures, burns out, and lets grass recover.
 - [ ] **16. Power undo or recovery tools.** Add a simple way to cancel an active effect or help a damaged habitat recover.
 
 **Checkpoint:** Players can create at least one helpful and one risky cause-and-effect chain and understand why populations respond.
@@ -175,8 +176,8 @@ Each numbered item is intended to be a small build step. Finish and play with on
 
 ## Exact next steps
 
-1. Browser-check items 10-14 visuals/feel (Rain, Bloom, Sanctuary overlays/timers, overlapping effects, faster regrowth, rabbit attraction, wolves ranging around refuge).
-2. Build **item 15 (One disruptive force)**: add a contained wildfire or drought with visible spread/damage/recovery and tuneable impact.
+1. Browser-check items 10-15 visuals/feel (Rain, Bloom, Sanctuary, Wildfire overlays/timers, overlapping effects, recovery after fire, wolf ranging/refuge behavior).
+2. Build **item 16 (Power undo or recovery tools)**: add a simple way to cancel an active effect or help a damaged habitat recover.
 3. Address item 45 (any-screen support) early as UI/layout work evolves.
 
 After Phase 1, continue to the Rain power in Phase 2. Build it as a chain of small pieces: power selection and target footprint → temporary rain state with duration → grass regrowth effect → visible rain feedback and event note → playtest the rain → grass → rabbit response. Do not bundle every future power into the first implementation.

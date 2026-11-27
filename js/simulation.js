@@ -7,6 +7,7 @@ const HISTORY_INTERVAL = 1.0;
 export const RAIN_CONFIG = { duration: 12, brushSize: 3, shape: 'round' };
 export const BLOOM_CONFIG = { duration: 18, brushSize: 3, shape: 'round' };
 export const SANCTUARY_CONFIG = { duration: 24, brushSize: 3, shape: 'round' };
+export const WILDFIRE_CONFIG = { duration: 8, brushSize: 3, shape: 'round', damagePerSec: 22, spreadDelay: 0.35 };
 
 export function createSimulation(world, options = {}) {
   const rabbits = options.initialRabbits ?? spawnInitialRabbits(world);
@@ -18,6 +19,7 @@ export function createSimulation(world, options = {}) {
     rains: Array.isArray(options.rains) ? options.rains : [],
     blooms: Array.isArray(options.blooms) ? options.blooms : [],
     sanctuaries: Array.isArray(options.sanctuaries) ? options.sanctuaries : [],
+    wildfires: Array.isArray(options.wildfires) ? options.wildfires : [],
     stats: {
       rabbitBirths: 0, rabbitDeaths: 0,
       wolfBirths: 0, wolfDeaths: 0,
@@ -32,7 +34,8 @@ export function createSimulation(world, options = {}) {
     _regrowFlush: 0,
     _rainSeq: 1,
     _bloomSeq: 1,
-    _sanctuarySeq: 1
+    _sanctuarySeq: 1,
+    _wildfireSeq: 1
   };
   if (!options.skipWelcome) addEvent(sim, 'world', buildWorldIntro(sim));
   recordHistory(sim, true);
@@ -45,6 +48,7 @@ export function resetSimulation(sim) {
   sim.rains.length = 0;
   sim.blooms.length = 0;
   sim.sanctuaries.length = 0;
+  sim.wildfires.length = 0;
   sim.stats.rabbitBirths = 0; sim.stats.rabbitDeaths = 0;
   sim.stats.wolfBirths = 0; sim.stats.wolfDeaths = 0;
   sim.stats.successfulHunts = 0;
@@ -55,6 +59,7 @@ export function resetSimulation(sim) {
   sim._rainSeq = 1;
   sim._bloomSeq = 1;
   sim._sanctuarySeq = 1;
+  sim._wildfireSeq = 1;
   const rabbits = spawnInitialRabbits(sim.world);
   const wolves = spawnInitialWolves(sim.world, rabbits);
   sim.rabbits.push(...rabbits);
@@ -115,6 +120,7 @@ export function stepSimulation(sim, dt) {
   updateRains(sim, dt);
   updateBlooms(sim, dt);
   updateSanctuaries(sim, dt);
+  updateWildfires(sim, dt);
 
   sim._regrowBatch = 0;
   updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; }, sim.rains);
@@ -700,6 +706,98 @@ function updateSanctuaries(sim, dt) {
   }
 }
 
+export function addWildfire(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return null;
+  const wildfire = {
+    id: sim._wildfireSeq++,
+    x: clampInt(x, 0, sim.world.width - 1),
+    y: clampInt(y, 0, sim.world.height - 1),
+    radius: Math.floor(WILDFIRE_CONFIG.brushSize / 2),
+    shape: WILDFIRE_CONFIG.shape,
+    duration: WILDFIRE_CONFIG.duration,
+    remaining: WILDFIRE_CONFIG.duration,
+    spreadTimer: 0,
+    ignited: new Set([`${clampInt(x,0,sim.world.width-1)},${clampInt(y,0,sim.world.height-1)}`])
+  };
+  igniteWildfireCell(sim, wildfire, wildfire.x, wildfire.y);
+  sim.wildfires.push(wildfire);
+  addEvent(sim, 'world', `Wildfire sparked at ${wildfire.x},${wildfire.y} for ${wildfire.duration}s; grass and creatures are at risk.`);
+  return wildfire;
+}
+
+function updateWildfires(sim, dt) {
+  if (!Array.isArray(sim.wildfires) || sim.wildfires.length === 0) return;
+  for (let i = sim.wildfires.length - 1; i >= 0; i--) {
+    const fire = sim.wildfires[i];
+    fire.remaining = Math.max(0, (Number(fire.remaining) || 0) - dt);
+    fire.spreadTimer = (Number(fire.spreadTimer) || 0) + dt;
+    while (fire.spreadTimer >= WILDFIRE_CONFIG.spreadDelay) {
+      fire.spreadTimer -= WILDFIRE_CONFIG.spreadDelay;
+      spreadWildfire(sim, fire);
+    }
+    applyWildfireDamage(sim, fire, dt);
+    if (fire.remaining <= 0) {
+      sim.wildfires.splice(i, 1);
+      addEvent(sim, 'world', `Wildfire at (${fire.x}, ${fire.y}) burned out; the land can recover.`);
+    }
+  }
+}
+
+function spreadWildfire(sim, fire) {
+  const radius = Math.max(0, Math.round(Number(fire.radius) || 0));
+  const candidates = [];
+  for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+    if (fire.shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+    const x = fire.x + dx, y = fire.y + dy;
+    if (!inBounds(sim.world, x, y)) continue;
+    const key = `${x},${y}`;
+    if (fire.ignited.has(key)) continue;
+    candidates.push({ x, y, key });
+  }
+  if (!candidates.length) return;
+  const pick = candidates[randInt(0, candidates.length - 1)];
+  fire.ignited.add(pick.key);
+  igniteWildfireCell(sim, fire, pick.x, pick.y);
+}
+
+function igniteWildfireCell(sim, fire, x, y) {
+  const tile = sim.world.tiles[y]?.[x];
+  if (tile === TILE_TYPES.GRASS || tile === TILE_TYPES.BUSH) {
+    sim.world.tiles[y][x] = TILE_TYPES.DIRT;
+    sim.world.regrowTimers[y][x] = Number(sim.world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime);
+  } else if (tile === TILE_TYPES.DIRT) {
+    sim.world.regrowTimers[y][x] = Math.max(sim.world.regrowTimers[y][x] || 0, Number(sim.world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime));
+  }
+}
+
+function isTileInWildfire(x, y, wildfires) {
+  if (!Array.isArray(wildfires) || wildfires.length === 0) return false;
+  for (const fire of wildfires) {
+    if ((Number(fire?.remaining) || 0) <= 0) continue;
+    if (fire.ignited && !fire.ignited.has(`${x},${y}`)) continue;
+    return true;
+  }
+  return false;
+}
+
+function applyWildfireDamage(sim, fire, dt) {
+  const dmg = WILDFIRE_CONFIG.damagePerSec * dt;
+  for (const r of sim.rabbits) {
+    if (!r.alive) continue;
+    if (!isTileInWildfire(r.tileX, r.tileY, [fire])) continue;
+    r.energy = clamp(r.energy - dmg, 0, RABBIT_CONFIG.maxEnergy);
+    r.hunger = clamp(r.hunger + dmg * 0.5, 0, RABBIT_CONFIG.maxHunger);
+    if (r.energy <= 0) { killEntity(r); r._deathLogged = true; addEvent(sim, 'death', `Rabbit #${r.id} perished in wildfire.`); }
+  }
+  for (const w of sim.wolves) {
+    if (!w.alive) continue;
+    if (!isTileInWildfire(w.tileX, w.tileY, [fire])) continue;
+    w.energy = clamp(w.energy - dmg, 0, WOLF_CONFIG.maxEnergy);
+    w.hunger = clamp(w.hunger + dmg * 0.45, 0, WOLF_CONFIG.maxHunger);
+    if (w.energy <= 0) { killEntity(w); w._deathLogged = true; addEvent(sim, 'death', `Wolf #${w.id} perished in wildfire.`); }
+  }
+}
+
 export function addEvent(sim, kind, message) {
   const ev = { id: sim._eventSeq++, kind, message, time: sim.time };
   sim.events.push(ev);
@@ -760,6 +858,7 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
     rains: (sim.rains || []).map(r => ({ id: r.id, x: r.x, y: r.y, radius: r.radius, shape: r.shape, duration: r.duration, remaining: r.remaining })),
     blooms: (sim.blooms || []).map(b => ({ id: b.id, x: b.x, y: b.y, radius: b.radius, shape: b.shape, duration: b.duration, remaining: b.remaining })),
     sanctuaries: (sim.sanctuaries || []).map(s => ({ id: s.id, x: s.x, y: s.y, radius: s.radius, shape: s.shape, duration: s.duration, remaining: s.remaining })),
+    wildfires: (sim.wildfires || []).map(f => ({ id: f.id, x: f.x, y: f.y, radius: f.radius, shape: f.shape, duration: f.duration, remaining: f.remaining, spreadTimer: f.spreadTimer, ignited: Array.from(f.ignited || []) })),
     rabbits: sim.rabbits.map(serializeEntity),
     wolves: sim.wolves.map(serializeEntity),
     events: sim.events.slice(-60),
@@ -769,7 +868,8 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
       wolf: sim.wolves.reduce((m,e)=>Math.max(m,e.id),0),
       rain: (sim.rains || []).reduce((m,e)=>Math.max(m,e.id||0),0),
       bloom: (sim.blooms || []).reduce((m,e)=>Math.max(m,e.id||0),0),
-      sanctuary: (sim.sanctuaries || []).reduce((m,e)=>Math.max(m,e.id||0),0)
+      sanctuary: (sim.sanctuaries || []).reduce((m,e)=>Math.max(m,e.id||0),0),
+      wildfire: (sim.wildfires || []).reduce((m,e)=>Math.max(m,e.id||0),0)
     }
   };
 }
@@ -792,11 +892,12 @@ export function hydrateSimulation(data) {
     rains: Array.isArray(migrated.rains) ? migrated.rains.map(r => sanitizeRain(r, world)).filter(Boolean) : [],
     blooms: Array.isArray(migrated.blooms) ? migrated.blooms.map(b => sanitizeBloom(b, world)).filter(Boolean) : [],
     sanctuaries: Array.isArray(migrated.sanctuaries) ? migrated.sanctuaries.map(s => sanitizeSanctuary(s, world)).filter(Boolean) : [],
+    wildfires: Array.isArray(migrated.wildfires) ? migrated.wildfires.map(f => sanitizeWildfire(f, world)).filter(Boolean) : [],
     stats: normalizeStats(migrated.stats),
     time: Math.max(0, Number(migrated.time) || 0),
     events: Array.isArray(migrated.events) ? migrated.events.slice(-MAX_EVENTS).map(sanitizeEvent).filter(Boolean) : [],
     history: Array.isArray(migrated.history) ? migrated.history.slice(-MAX_HISTORY).map(sanitizeHistory).filter(Boolean) : [],
-    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1, _bloomSeq: 1, _sanctuarySeq: 1
+    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1, _bloomSeq: 1, _sanctuarySeq: 1, _wildfireSeq: 1
   };
   setIdCounters(migrated.idCounters?.rabbit || 0, migrated.idCounters?.wolf || 0);
   for (const r of (migrated.rabbits || [])) {
@@ -825,6 +926,7 @@ export function hydrateSimulation(data) {
   sim._rainSeq = sim.rains.reduce((m, r) => Math.max(m, r.id || 0), migrated.idCounters?.rain || 0) + 1;
   sim._bloomSeq = sim.blooms.reduce((m, b) => Math.max(m, b.id || 0), migrated.idCounters?.bloom || 0) + 1;
   sim._sanctuarySeq = sim.sanctuaries.reduce((m, s) => Math.max(m, s.id || 0), migrated.idCounters?.sanctuary || 0) + 1;
+  sim._wildfireSeq = sim.wildfires.reduce((m, f) => Math.max(m, f.id || 0), migrated.idCounters?.wildfire || 0) + 1;
   sim._eventSeq = sim.events.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
   if (!sim.history.length) recordHistory(sim, true);
   return sim;
@@ -876,6 +978,7 @@ function normalizeSaveV2(data) {
     rains: Array.isArray(data.rains) ? data.rains : [],
     blooms: Array.isArray(data.blooms) ? data.blooms : [],
     sanctuaries: Array.isArray(data.sanctuaries) ? data.sanctuaries : [],
+    wildfires: Array.isArray(data.wildfires) ? data.wildfires : [],
     rabbits: Array.isArray(data.rabbits) ? data.rabbits : [],
     wolves: Array.isArray(data.wolves) ? data.wolves : [],
     events: Array.isArray(data.events) ? data.events : [],
@@ -968,6 +1071,28 @@ function sanitizeSanctuary(s, world) {
     duration,
     remaining
   };
+}
+
+function sanitizeWildfire(f, world) {
+  if (!f || typeof f !== 'object') return null;
+  const duration = clamp(Number(f.duration) || WILDFIRE_CONFIG.duration, 1, 120);
+  const remaining = clamp(Number(f.remaining), 0, duration);
+  if (remaining <= 0) return null;
+  const x = clampInt(f.x, 0, world.width - 1);
+  const y = clampInt(f.y, 0, world.height - 1);
+  const radius = clampInt(f.radius ?? Math.floor(WILDFIRE_CONFIG.brushSize / 2), 0, 8);
+  const shape = f.shape === 'round' ? 'round' : 'square';
+  const ignitedArr = Array.isArray(f.ignited) ? f.ignited : [];
+  const ignited = new Set();
+  for (const k of ignitedArr) {
+    if (typeof k !== 'string') continue;
+    const [sx, sy] = k.split(',').map(n => clampInt(n, 0, 999));
+    if (sx < 0 || sy < 0 || sx >= world.width || sy >= world.height) continue;
+    const dx = sx - x, dy = sy - y;
+    if (shape === 'round' ? dx*dx + dy*dy <= radius*radius : Math.abs(dx)<=radius && Math.abs(dy)<=radius) ignited.add(`${sx},${sy}`);
+  }
+  if (ignited.size === 0) ignited.add(`${x},${y}`);
+  return { id: Math.max(0, Math.round(Number(f.id) || 0)), x, y, radius, shape, duration, remaining, spreadTimer: Math.max(0, Number(f.spreadTimer) || 0), ignited };
 }
 
 function serializeEntity(e) {

@@ -10,12 +10,13 @@ export function setupCanvas(canvas, world) {
 }
 
 export function render(ctx, state) {
-  const { world, rabbits, wolves, rains, blooms, sanctuaries, selected, selectedTile, hoverTile, brush, settings, time } = state;
+  const { world, rabbits, wolves, rains, blooms, sanctuaries, wildfires, selected, selectedTile, hoverTile, brush, settings, time } = state;
   renderWorld(ctx, world, time, settings);
   if (settings?.showGrid) drawGrid(ctx, world);
   drawRains(ctx, world, rains, time);
   drawBlooms(ctx, world, blooms, time);
   drawSanctuaries(ctx, world, sanctuaries, time);
+  drawWildfires(ctx, world, wildfires, time);
   if (selectedTile) drawTileHighlight(ctx, selectedTile.x, selectedTile.y, world.tileSize, '#ffe08a', 2);
   if (hoverTile && brush && brush.tool) drawBrushPreview(ctx, world, hoverTile.x, hoverTile.y, brush, settings);
   renderEntities(ctx, world, rabbits, wolves, selected, time, settings);
@@ -149,7 +150,8 @@ function drawTileHighlight(ctx, x, y, size, color, lw=2) {
 const PREVIEW_POWER_TOOLS = {
   rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' },
   bloom: { size: 3, shape: 'round', color: 'rgba(255,170,210,0.82)' },
-  sanctuary: { size: 3, shape: 'round', color: 'rgba(170,230,160,0.82)' }
+  sanctuary: { size: 3, shape: 'round', color: 'rgba(170,230,160,0.82)' },
+  wildfire: { size: 3, shape: 'round', color: 'rgba(255,140,70,0.85)' }
 };
 
 function drawBlooms(ctx, world, blooms, time) {
@@ -233,14 +235,45 @@ function drawSanctuaries(ctx, world, sanctuaries, time) {
       const py = c.y * size + 4 + ((seed >> 3) % 8);
       ctx.fillStyle = 'rgba(235,255,225,0.75)';
       ctx.fillRect(px, py, 1, 1);
-      ctx.fillRect(px - 1, py, 1, 1);
-      ctx.fillRect(px + 1, py, 1, 1);
-      ctx.fillRect(px, py - 1, 1, 1);
-      ctx.fillRect(px, py + 1, 1, 1);
+      ctx.fillRect(px - 1, py, 1, 1); ctx.fillRect(px + 1, py, 1, 1); ctx.fillRect(px, py - 1, 1, 1); ctx.fillRect(px, py + 1, 1, 1);
     }
     ctx.restore();
 
     drawTimerBadge(ctx, (sanctuary.x + 0.5) * size, (sanctuary.y + 0.5) * size - 0.5, `${Math.max(0, Math.ceil(Number(sanctuary.remaining) || 0))}s`, 'rgba(40,70,35,0.78)', 'rgba(210,245,200,0.9)');
+  }
+}
+
+function drawWildfires(ctx, world, wildfires, time) {
+  if (!Array.isArray(wildfires) || wildfires.length === 0) return;
+  const size = world.tileSize;
+  for (const fire of wildfires) {
+    const radius = Math.max(0, Math.round(Number(fire.radius) || 1));
+    const shape = fire.shape === 'round' ? 'round' : 'square';
+    const cells = [];
+    const ignited = fire.ignited instanceof Set ? fire.ignited : new Set(Array.isArray(fire.ignited) ? fire.ignited : []);
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+      const x = fire.x + dx, y = fire.y + dy;
+      if (!inBounds(world, x, y)) continue;
+      if (ignited.size && !ignited.has(`${x},${y}`)) continue;
+      cells.push({ x, y });
+    }
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,110,40,0.18)';
+    for (const c of cells) ctx.fillRect(c.x * size, c.y * size, size, size);
+    for (const c of cells) {
+      const seed = hash(c.x + (fire.id || 0) * 29, c.y + (fire.id || 0) * 31);
+      const flicker = Math.sin(time * 10 + seed) > 0 ? 1 : 0;
+      ctx.fillStyle = flicker ? 'rgba(255,190,80,0.55)' : 'rgba(255,120,50,0.45)';
+      ctx.fillRect(c.x * size + 3 + (seed % 4), c.y * size + 2 + ((seed >> 2) % 4), 3, 3 + flicker);
+      ctx.fillStyle = 'rgba(255,245,180,0.45)';
+      ctx.fillRect(c.x * size + 6 + (seed % 3), c.y * size + 4 + ((seed >> 3) % 3), 1, 2);
+    }
+    ctx.strokeStyle = 'rgba(255,170,110,0.75)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect((fire.x - radius) * size + 1.5, (fire.y - radius) * size + 1.5, (radius * 2 + 1) * size - 3, (radius * 2 + 1) * size - 3);
+    ctx.restore();
+    drawTimerBadge(ctx, (fire.x + 0.5) * size, (fire.y + 0.5) * size - 0.5, `${Math.max(0, Math.ceil(Number(fire.remaining) || 0))}s`, 'rgba(90,35,20,0.78)', 'rgba(255,210,170,0.9)');
   }
 }
 
