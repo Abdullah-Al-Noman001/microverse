@@ -6,6 +6,7 @@ const MAX_HISTORY = 240;
 const HISTORY_INTERVAL = 1.0;
 export const RAIN_CONFIG = { duration: 12, brushSize: 3, shape: 'round' };
 export const BLOOM_CONFIG = { duration: 18, brushSize: 3, shape: 'round' };
+export const SANCTUARY_CONFIG = { duration: 24, brushSize: 3, shape: 'round' };
 
 export function createSimulation(world, options = {}) {
   const rabbits = options.initialRabbits ?? spawnInitialRabbits(world);
@@ -16,6 +17,7 @@ export function createSimulation(world, options = {}) {
     wolves,
     rains: Array.isArray(options.rains) ? options.rains : [],
     blooms: Array.isArray(options.blooms) ? options.blooms : [],
+    sanctuaries: Array.isArray(options.sanctuaries) ? options.sanctuaries : [],
     stats: {
       rabbitBirths: 0, rabbitDeaths: 0,
       wolfBirths: 0, wolfDeaths: 0,
@@ -29,7 +31,8 @@ export function createSimulation(world, options = {}) {
     _regrowBatch: 0,
     _regrowFlush: 0,
     _rainSeq: 1,
-    _bloomSeq: 1
+    _bloomSeq: 1,
+    _sanctuarySeq: 1
   };
   if (!options.skipWelcome) addEvent(sim, 'world', buildWorldIntro(sim));
   recordHistory(sim, true);
@@ -41,6 +44,7 @@ export function resetSimulation(sim) {
   sim.wolves.length = 0;
   sim.rains.length = 0;
   sim.blooms.length = 0;
+  sim.sanctuaries.length = 0;
   sim.stats.rabbitBirths = 0; sim.stats.rabbitDeaths = 0;
   sim.stats.wolfBirths = 0; sim.stats.wolfDeaths = 0;
   sim.stats.successfulHunts = 0;
@@ -50,6 +54,7 @@ export function resetSimulation(sim) {
   sim._regrowBatch = 0; sim._regrowFlush = 0;
   sim._rainSeq = 1;
   sim._bloomSeq = 1;
+  sim._sanctuarySeq = 1;
   const rabbits = spawnInitialRabbits(sim.world);
   const wolves = spawnInitialWolves(sim.world, rabbits);
   sim.rabbits.push(...rabbits);
@@ -109,6 +114,7 @@ export function stepSimulation(sim, dt) {
   sim.time += dt;
   updateRains(sim, dt);
   updateBlooms(sim, dt);
+  updateSanctuaries(sim, dt);
 
   sim._regrowBatch = 0;
   updateGrassRegrowth(sim.world, dt, () => { sim._regrowBatch++; }, sim.rains);
@@ -281,7 +287,7 @@ function updateWolf(wolf, sim, dt) {
   if (wolf.state === 'chasing' || wolf.state === 'hunting') tryCatchTarget(wolf, sim);
   if (!wolf.alive || wolf.state === 'eating') return;
 
-  const target = resolveWolfTarget(wolf, rabbits);
+  const target = resolveWolfTarget(wolf, rabbits, sim.sanctuaries);
   if (target) {
     wolf.targetRabbitId = target.id;
     const posT = getEntityRenderPos(target);
@@ -299,19 +305,20 @@ function updateWolf(wolf, sim, dt) {
   wander(wolf, world, sim.wolves, [], dt);
 }
 
-function resolveWolfTarget(wolf, rabbits) {
+function resolveWolfTarget(wolf, rabbits, sanctuaries) {
   let target = wolf.targetRabbitId != null ? rabbits.find((r) => r.id === wolf.targetRabbitId && r.alive) : null;
   if (target) {
     const d = euclid(wolf.tileX, wolf.tileY, target.tileX, target.tileY);
-    if (d > WOLF_CONFIG.loseTargetRange) target = null;
+    if (d > WOLF_CONFIG.loseTargetRange || isTileInSanctuary(target.tileX, target.tileY, sanctuaries)) target = null;
   }
-  if (!target) target = findNearestRabbit(rabbits, wolf.tileX, wolf.tileY, wolf.visionRange);
+  if (!target) target = findNearestRabbit(rabbits, wolf.tileX, wolf.tileY, wolf.visionRange, sanctuaries);
   return target;
 }
 
 function tryCatchTarget(wolf, sim) {
   const target = sim.rabbits.find((r) => r.id === wolf.targetRabbitId && r.alive);
   if (!target) return;
+  if (isTileInSanctuary(target.tileX, target.tileY, sim.sanctuaries) || isTileInSanctuary(wolf.tileX, wolf.tileY, sim.sanctuaries)) { wolf.targetRabbitId = null; if (wolf.state === 'chasing' || wolf.state === 'hunting') wolf.state = 'searching'; return; }
   const wp = getEntityRenderPos(wolf);
   const rp = getEntityRenderPos(target);
   if (euclid(wp.x, wp.y, rp.x, rp.y) <= WOLF_CONFIG.catchDistance) {
@@ -321,6 +328,7 @@ function tryCatchTarget(wolf, sim) {
 
 function doCatch(wolf, rabbit, sim) {
   if (!rabbit.alive || wolf.state === 'eating') return;
+  if (isTileInSanctuary(rabbit.tileX, rabbit.tileY, sim.sanctuaries) || isTileInSanctuary(wolf.tileX, wolf.tileY, sim.sanctuaries)) { wolf.targetRabbitId = null; if (wolf.state === 'chasing' || wolf.state === 'hunting') wolf.state = 'searching'; return; }
   killEntity(rabbit);
   rabbit._deathLogged = true;
   wolf.state = 'eating';
@@ -452,6 +460,20 @@ function isTileInBloom(x, y, blooms) {
   return false;
 }
 
+function isTileInSanctuary(x, y, sanctuaries) {
+  if (!Array.isArray(sanctuaries) || sanctuaries.length === 0) return false;
+  for (const sanctuary of sanctuaries) {
+    if ((Number(sanctuary?.remaining) || 0) <= 0) continue;
+    const radius = Math.max(0, Math.round(Number(sanctuary.radius) || 0));
+    const dx = x - (Number(sanctuary.x) || 0);
+    const dy = y - (Number(sanctuary.y) || 0);
+    if (sanctuary.shape === 'round') { if (dx * dx + dy * dy > radius * radius) continue; }
+    else if (Math.abs(dx) > radius || Math.abs(dy) > radius) continue;
+    return true;
+  }
+  return false;
+}
+
 function findNearestFood(world, blooms, x, y, radius) {
   let best = null, bestDist = Infinity;
   const minX = Math.max(0, x - radius), maxX = Math.min(world.width - 1, x + radius);
@@ -485,10 +507,11 @@ function findNearestWolf(wolves, x, y, radius) {
   return best;
 }
 
-function findNearestRabbit(rabbits, x, y, radius) {
+function findNearestRabbit(rabbits, x, y, radius, sanctuaries = null) {
   let best = null, bestD = Infinity;
   for (const r of rabbits) {
     if (!r.alive) continue;
+    if (isTileInSanctuary(r.tileX, r.tileY, sanctuaries)) continue;
     const d = euclid(x, y, r.tileX, r.tileY);
     if (d <= radius && d < bestD) { bestD = d; best = r; }
   }
@@ -625,6 +648,22 @@ export function addBloom(sim, x, y) {
   return bloom;
 }
 
+export function addSanctuary(sim, x, y) {
+  if (!sim?.world || !inBounds(sim.world, x, y)) return null;
+  const sanctuary = {
+    id: sim._sanctuarySeq++,
+    x: clampInt(x, 0, sim.world.width - 1),
+    y: clampInt(y, 0, sim.world.height - 1),
+    radius: Math.floor(SANCTUARY_CONFIG.brushSize / 2),
+    shape: SANCTUARY_CONFIG.shape,
+    duration: SANCTUARY_CONFIG.duration,
+    remaining: SANCTUARY_CONFIG.duration
+  };
+  sim.sanctuaries.push(sanctuary);
+  addEvent(sim, 'world', `Sanctuary formed at ${sanctuary.x},${sanctuary.y} for ${sanctuary.duration}s; wolves avoid hunting there.`);
+  return sanctuary;
+}
+
 function updateRains(sim, dt) {
   if (!Array.isArray(sim.rains) || sim.rains.length === 0) return;
   for (let i = sim.rains.length - 1; i >= 0; i--) {
@@ -645,6 +684,18 @@ function updateBlooms(sim, dt) {
     if (bloom.remaining <= 0) {
       sim.blooms.splice(i, 1);
       addEvent(sim, 'world', `Bloom patch at (${bloom.x}, ${bloom.y}) faded.`);
+    }
+  }
+}
+
+function updateSanctuaries(sim, dt) {
+  if (!Array.isArray(sim.sanctuaries) || sim.sanctuaries.length === 0) return;
+  for (let i = sim.sanctuaries.length - 1; i >= 0; i--) {
+    const sanctuary = sim.sanctuaries[i];
+    sanctuary.remaining = Math.max(0, (Number(sanctuary.remaining) || 0) - dt);
+    if (sanctuary.remaining <= 0) {
+      sim.sanctuaries.splice(i, 1);
+      addEvent(sim, 'world', `Sanctuary at (${sanctuary.x}, ${sanctuary.y}) faded.`);
     }
   }
 }
@@ -708,6 +759,7 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
     stats: { ...sim.stats },
     rains: (sim.rains || []).map(r => ({ id: r.id, x: r.x, y: r.y, radius: r.radius, shape: r.shape, duration: r.duration, remaining: r.remaining })),
     blooms: (sim.blooms || []).map(b => ({ id: b.id, x: b.x, y: b.y, radius: b.radius, shape: b.shape, duration: b.duration, remaining: b.remaining })),
+    sanctuaries: (sim.sanctuaries || []).map(s => ({ id: s.id, x: s.x, y: s.y, radius: s.radius, shape: s.shape, duration: s.duration, remaining: s.remaining })),
     rabbits: sim.rabbits.map(serializeEntity),
     wolves: sim.wolves.map(serializeEntity),
     events: sim.events.slice(-60),
@@ -716,7 +768,8 @@ export function serializeSimulation(sim, worldName = 'Microverse') {
       rabbit: sim.rabbits.reduce((m,e)=>Math.max(m,e.id),0),
       wolf: sim.wolves.reduce((m,e)=>Math.max(m,e.id),0),
       rain: (sim.rains || []).reduce((m,e)=>Math.max(m,e.id||0),0),
-      bloom: (sim.blooms || []).reduce((m,e)=>Math.max(m,e.id||0),0)
+      bloom: (sim.blooms || []).reduce((m,e)=>Math.max(m,e.id||0),0),
+      sanctuary: (sim.sanctuaries || []).reduce((m,e)=>Math.max(m,e.id||0),0)
     }
   };
 }
@@ -738,11 +791,12 @@ export function hydrateSimulation(data) {
     rabbits: [], wolves: [],
     rains: Array.isArray(migrated.rains) ? migrated.rains.map(r => sanitizeRain(r, world)).filter(Boolean) : [],
     blooms: Array.isArray(migrated.blooms) ? migrated.blooms.map(b => sanitizeBloom(b, world)).filter(Boolean) : [],
+    sanctuaries: Array.isArray(migrated.sanctuaries) ? migrated.sanctuaries.map(s => sanitizeSanctuary(s, world)).filter(Boolean) : [],
     stats: normalizeStats(migrated.stats),
     time: Math.max(0, Number(migrated.time) || 0),
     events: Array.isArray(migrated.events) ? migrated.events.slice(-MAX_EVENTS).map(sanitizeEvent).filter(Boolean) : [],
     history: Array.isArray(migrated.history) ? migrated.history.slice(-MAX_HISTORY).map(sanitizeHistory).filter(Boolean) : [],
-    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1, _bloomSeq: 1
+    _historyTimer: 0, _eventSeq: 1, _regrowBatch: 0, _regrowFlush: 0, _rainSeq: 1, _bloomSeq: 1, _sanctuarySeq: 1
   };
   setIdCounters(migrated.idCounters?.rabbit || 0, migrated.idCounters?.wolf || 0);
   for (const r of (migrated.rabbits || [])) {
@@ -770,6 +824,7 @@ export function hydrateSimulation(data) {
   );
   sim._rainSeq = sim.rains.reduce((m, r) => Math.max(m, r.id || 0), migrated.idCounters?.rain || 0) + 1;
   sim._bloomSeq = sim.blooms.reduce((m, b) => Math.max(m, b.id || 0), migrated.idCounters?.bloom || 0) + 1;
+  sim._sanctuarySeq = sim.sanctuaries.reduce((m, s) => Math.max(m, s.id || 0), migrated.idCounters?.sanctuary || 0) + 1;
   sim._eventSeq = sim.events.reduce((m, e) => Math.max(m, e.id || 0), 0) + 1;
   if (!sim.history.length) recordHistory(sim, true);
   return sim;
@@ -820,6 +875,7 @@ function normalizeSaveV2(data) {
     stats: normalizeStats(data.stats),
     rains: Array.isArray(data.rains) ? data.rains : [],
     blooms: Array.isArray(data.blooms) ? data.blooms : [],
+    sanctuaries: Array.isArray(data.sanctuaries) ? data.sanctuaries : [],
     rabbits: Array.isArray(data.rabbits) ? data.rabbits : [],
     wolves: Array.isArray(data.wolves) ? data.wolves : [],
     events: Array.isArray(data.events) ? data.events : [],
@@ -893,6 +949,22 @@ function sanitizeBloom(b, world) {
     y: clampInt(b.y, 0, world.height - 1),
     radius: clampInt(b.radius ?? Math.floor(BLOOM_CONFIG.brushSize / 2), 0, 8),
     shape: b.shape === 'round' ? 'round' : 'square',
+    duration,
+    remaining
+  };
+}
+
+function sanitizeSanctuary(s, world) {
+  if (!s || typeof s !== 'object') return null;
+  const duration = clamp(Number(s.duration) || SANCTUARY_CONFIG.duration, 1, 120);
+  const remaining = clamp(Number(s.remaining), 0, duration);
+  if (remaining <= 0) return null;
+  return {
+    id: Math.max(0, Math.round(Number(s.id) || 0)),
+    x: clampInt(s.x, 0, world.width - 1),
+    y: clampInt(s.y, 0, world.height - 1),
+    radius: clampInt(s.radius ?? Math.floor(SANCTUARY_CONFIG.brushSize / 2), 0, 8),
+    shape: s.shape === 'round' ? 'round' : 'square',
     duration,
     remaining
   };

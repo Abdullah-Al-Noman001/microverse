@@ -10,11 +10,12 @@ export function setupCanvas(canvas, world) {
 }
 
 export function render(ctx, state) {
-  const { world, rabbits, wolves, rains, blooms, selected, selectedTile, hoverTile, brush, settings, time } = state;
+  const { world, rabbits, wolves, rains, blooms, sanctuaries, selected, selectedTile, hoverTile, brush, settings, time } = state;
   renderWorld(ctx, world, time, settings);
   if (settings?.showGrid) drawGrid(ctx, world);
   drawRains(ctx, world, rains, time);
   drawBlooms(ctx, world, blooms, time);
+  drawSanctuaries(ctx, world, sanctuaries, time);
   if (selectedTile) drawTileHighlight(ctx, selectedTile.x, selectedTile.y, world.tileSize, '#ffe08a', 2);
   if (hoverTile && brush && brush.tool) drawBrushPreview(ctx, world, hoverTile.x, hoverTile.y, brush, settings);
   renderEntities(ctx, world, rabbits, wolves, selected, time, settings);
@@ -147,7 +148,8 @@ function drawTileHighlight(ctx, x, y, size, color, lw=2) {
 }
 const PREVIEW_POWER_TOOLS = {
   rain: { size: 3, shape: 'round', color: 'rgba(120,190,255,0.82)' },
-  bloom: { size: 3, shape: 'round', color: 'rgba(255,170,210,0.82)' }
+  bloom: { size: 3, shape: 'round', color: 'rgba(255,170,210,0.82)' },
+  sanctuary: { size: 3, shape: 'round', color: 'rgba(170,230,160,0.82)' }
 };
 
 function drawBlooms(ctx, world, blooms, time) {
@@ -192,27 +194,73 @@ function drawBlooms(ctx, world, blooms, time) {
     }
     ctx.restore();
 
-    const secs = Math.max(0, Math.ceil(Number(bloom.remaining) || 0));
-    const label = `${secs}s`;
-    const lx = (bloom.x + 0.5) * size;
-    const ly = (bloom.y + 0.5) * size - 0.5;
-    ctx.save();
-    ctx.font = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const w = Math.ceil(ctx.measureText(label).width) + 6;
-    const h = 12;
-    ctx.fillStyle = 'rgba(92,45,72,0.78)';
-    ctx.fillRect(Math.round(lx - w / 2), Math.round(ly - h / 2), w, h);
-    ctx.strokeStyle = 'rgba(255,215,235,0.9)';
-    ctx.strokeRect(Math.round(lx - w / 2) + 0.5, Math.round(ly - h / 2) + 0.5, w - 1, h - 1);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(60,28,48,0.85)';
-    ctx.strokeText(label, lx, ly);
-    ctx.fillStyle = 'rgba(255,249,252,0.98)';
-    ctx.fillText(label, lx, ly);
-    ctx.restore();
+    drawTimerBadge(ctx, (bloom.x + 0.5) * size, (bloom.y + 0.5) * size - 0.5, `${Math.max(0, Math.ceil(Number(bloom.remaining) || 0))}s`, 'rgba(92,45,72,0.78)', 'rgba(255,215,235,0.9)');
   }
+}
+
+function drawSanctuaries(ctx, world, sanctuaries, time) {
+  if (!Array.isArray(sanctuaries) || sanctuaries.length === 0) return;
+  const size = world.tileSize;
+  for (const sanctuary of sanctuaries) {
+    const radius = Math.max(0, Math.round(Number(sanctuary.radius) || 1));
+    const shape = sanctuary.shape === 'round' ? 'round' : 'square';
+    const cells = [];
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
+      const x = sanctuary.x + dx, y = sanctuary.y + dy;
+      if (inBounds(world, x, y)) cells.push({ x, y });
+    }
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(150,220,140,0.14)';
+    for (const c of cells) ctx.fillRect(c.x * size, c.y * size, size, size);
+    ctx.strokeStyle = 'rgba(200,245,185,0.72)';
+    ctx.lineWidth = 1;
+    const cellKeys = new Set(cells.map(c => `${c.x},${c.y}`));
+    ctx.beginPath();
+    for (const c of cells) {
+      if (!cellKeys.has(`${c.x},${c.y - 1}`)) { ctx.moveTo(c.x * size + 1.5, c.y * size + 1.5); ctx.lineTo((c.x + 1) * size - 1.5, c.y * size + 1.5); }
+      if (!cellKeys.has(`${c.x + 1},${c.y}`)) { ctx.moveTo((c.x + 1) * size - 1.5, c.y * size + 1.5); ctx.lineTo((c.x + 1) * size - 1.5, (c.y + 1) * size - 1.5); }
+      if (!cellKeys.has(`${c.x},${c.y + 1}`)) { ctx.moveTo((c.x + 1) * size - 1.5, (c.y + 1) * size - 1.5); ctx.lineTo(c.x * size + 1.5, (c.y + 1) * size - 1.5); }
+      if (!cellKeys.has(`${c.x - 1},${c.y}`)) { ctx.moveTo(c.x * size + 1.5, (c.y + 1) * size - 1.5); ctx.lineTo(c.x * size + 1.5, c.y * size + 1.5); }
+    }
+    ctx.stroke();
+
+    for (const c of cells) {
+      const seed = hash(c.x + (sanctuary.id || 0) * 19, c.y + (sanctuary.id || 0) * 23);
+      if ((seed + Math.floor(time * 2)) % 5 !== 0) continue;
+      const px = c.x * size + 4 + (seed % 8);
+      const py = c.y * size + 4 + ((seed >> 3) % 8);
+      ctx.fillStyle = 'rgba(235,255,225,0.75)';
+      ctx.fillRect(px, py, 1, 1);
+      ctx.fillRect(px - 1, py, 1, 1);
+      ctx.fillRect(px + 1, py, 1, 1);
+      ctx.fillRect(px, py - 1, 1, 1);
+      ctx.fillRect(px, py + 1, 1, 1);
+    }
+    ctx.restore();
+
+    drawTimerBadge(ctx, (sanctuary.x + 0.5) * size, (sanctuary.y + 0.5) * size - 0.5, `${Math.max(0, Math.ceil(Number(sanctuary.remaining) || 0))}s`, 'rgba(40,70,35,0.78)', 'rgba(210,245,200,0.9)');
+  }
+}
+
+function drawTimerBadge(ctx, lx, ly, label, bg, border) {
+  ctx.save();
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const w = Math.ceil(ctx.measureText(label).width) + 6;
+  const h = 12;
+  ctx.fillStyle = bg;
+  ctx.fillRect(Math.round(lx - w / 2), Math.round(ly - h / 2), w, h);
+  ctx.strokeStyle = border;
+  ctx.strokeRect(Math.round(lx - w / 2) + 0.5, Math.round(ly - h / 2) + 0.5, w - 1, h - 1);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(15,30,45,0.85)';
+  ctx.strokeText(label, lx, ly);
+  ctx.fillStyle = 'rgba(245,252,255,0.98)';
+  ctx.fillText(label, lx, ly);
+  ctx.restore();
 }
 
 function settingsLikePulse(time, seed) {
@@ -265,26 +313,7 @@ function drawRains(ctx, world, rains, time) {
     }
     ctx.restore();
 
-    const secs = Math.max(0, Math.ceil(Number(rain.remaining) || 0));
-    const label = `${secs}s`;
-    const lx = (rain.x + 0.5) * size;
-    const ly = (rain.y + 0.5) * size - 0.5;
-    ctx.save();
-    ctx.font = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const w = Math.ceil(ctx.measureText(label).width) + 6;
-    const h = 12;
-    ctx.fillStyle = 'rgba(20,45,70,0.72)';
-    ctx.fillRect(Math.round(lx - w / 2), Math.round(ly - h / 2), w, h);
-    ctx.strokeStyle = 'rgba(190,235,255,0.85)';
-    ctx.strokeRect(Math.round(lx - w / 2) + 0.5, Math.round(ly - h / 2) + 0.5, w - 1, h - 1);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(15,30,45,0.85)';
-    ctx.strokeText(label, lx, ly);
-    ctx.fillStyle = 'rgba(245,252,255,0.98)';
-    ctx.fillText(label, lx, ly);
-    ctx.restore();
+    drawTimerBadge(ctx, (rain.x + 0.5) * size, (rain.y + 0.5) * size - 0.5, `${Math.max(0, Math.ceil(Number(rain.remaining) || 0))}s`, 'rgba(20,45,70,0.72)', 'rgba(190,235,255,0.85)');
   }
 }
 
