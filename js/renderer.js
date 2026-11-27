@@ -257,6 +257,7 @@ function drawWildfires(ctx, world, wildfires, time) {
       if (shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
       const x = fire.x + dx, y = fire.y + dy;
       if (!inBounds(world, x, y)) continue;
+      if (world.tiles[y]?.[x] === 'water') continue;
       if (ignited.size && !ignited.has(`${x},${y}`)) continue;
       cells.push({ x, y });
     }

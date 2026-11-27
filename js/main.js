@@ -422,6 +422,8 @@ function applyToolAt(tile, isDrag=false) {
       else showToast('Could not place sanctuary there.');
     }
     if (brush.tool === 'wildfire') {
+      const tileType = getTile(sim.world, tile.x, tile.y);
+      if (tileType === 'water') { showToast('Cannot start wildfire on water.'); lastPaintKey = key; return; }
       const wildfire = addWildfire(sim, tile.x, tile.y);
       if (wildfire) { showToast(`Wildfire sparked (${wildfire.duration}s).`); sfx('hunt'); }
       else showToast('Could not place wildfire there.');

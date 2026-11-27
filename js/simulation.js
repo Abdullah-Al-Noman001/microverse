@@ -1159,10 +1159,12 @@ function sanitizeWildfire(f, world) {
     if (typeof k !== 'string') continue;
     const [sx, sy] = k.split(',').map(n => clampInt(n, 0, 999));
     if (sx < 0 || sy < 0 || sx >= world.width || sy >= world.height) continue;
+    if (world.tiles[sy]?.[sx] === TILE_TYPES.WATER) continue;
     const dx = sx - x, dy = sy - y;
     if (shape === 'round' ? dx*dx + dy*dy <= radius*radius : Math.abs(dx)<=radius && Math.abs(dy)<=radius) ignited.add(`${sx},${sy}`);
   }
-  if (ignited.size === 0) ignited.add(`${x},${y}`);
+  if (ignited.size === 0 && world.tiles[y]?.[x] !== TILE_TYPES.WATER) ignited.add(`${x},${y}`);
+  if (ignited.size === 0) return null;
   return { id: Math.max(0, Math.round(Number(f.id) || 0)), x, y, radius, shape, duration, remaining, spreadTimer: Math.max(0, Number(f.spreadTimer) || 0), ignited };
 }
 
