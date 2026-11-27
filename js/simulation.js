@@ -709,18 +709,20 @@ function updateSanctuaries(sim, dt) {
 
 export function addWildfire(sim, x, y) {
   if (!sim?.world || !inBounds(sim.world, x, y)) return null;
+  const tx = clampInt(x, 0, sim.world.width - 1), ty = clampInt(y, 0, sim.world.height - 1);
+  if (sim.world.tiles[ty]?.[tx] === TILE_TYPES.WATER) return null;
   const wildfire = {
     id: sim._wildfireSeq++,
-    x: clampInt(x, 0, sim.world.width - 1),
-    y: clampInt(y, 0, sim.world.height - 1),
+    x: tx,
+    y: ty,
     radius: Math.floor(WILDFIRE_CONFIG.brushSize / 2),
     shape: WILDFIRE_CONFIG.shape,
     duration: WILDFIRE_CONFIG.duration,
     remaining: WILDFIRE_CONFIG.duration,
     spreadTimer: 0,
-    ignited: new Set([`${clampInt(x,0,sim.world.width-1)},${clampInt(y,0,sim.world.height-1)}`])
+    ignited: new Set([`${tx},${ty}`])
   };
-  igniteWildfireCell(sim, wildfire, wildfire.x, wildfire.y);
+  if (!igniteWildfireCell(sim, wildfire, wildfire.x, wildfire.y)) return null;
   sim.wildfires.push(wildfire);
   addEvent(sim, 'world', `Wildfire sparked at ${wildfire.x},${wildfire.y} for ${wildfire.duration}s; grass and creatures are at risk.`);
   return wildfire;
@@ -816,6 +818,7 @@ function spreadWildfire(sim, fire) {
     if (fire.shape === 'round' && dx * dx + dy * dy > radius * radius) continue;
     const x = fire.x + dx, y = fire.y + dy;
     if (!inBounds(sim.world, x, y)) continue;
+    if (sim.world.tiles[y]?.[x] === TILE_TYPES.WATER) continue;
     const key = `${x},${y}`;
     if (fire.ignited.has(key)) continue;
     candidates.push({ x, y, key });
@@ -828,12 +831,14 @@ function spreadWildfire(sim, fire) {
 
 function igniteWildfireCell(sim, fire, x, y) {
   const tile = sim.world.tiles[y]?.[x];
+  if (tile === TILE_TYPES.WATER) return false;
   if (tile === TILE_TYPES.GRASS || tile === TILE_TYPES.BUSH) {
     sim.world.tiles[y][x] = TILE_TYPES.DIRT;
     sim.world.regrowTimers[y][x] = Number(sim.world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime);
   } else if (tile === TILE_TYPES.DIRT) {
     sim.world.regrowTimers[y][x] = Math.max(sim.world.regrowTimers[y][x] || 0, Number(sim.world.grassRegrowTime ?? WORLD_CONFIG.grassRegrowTime));
   }
+  return true;
 }
 
 function isTileInWildfire(x, y, wildfires) {
